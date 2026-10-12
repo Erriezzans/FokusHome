@@ -14,6 +14,31 @@
         android:layout_weight="0.1" />
 
     <LinearLayout
+        android:id="@+id/clockLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:gravity="end"
+        android:orientation="vertical"
+        android:paddingEnd="20dp"
+        android:visibility="gone">
+
+        <TextClock
+            android:id="@+id/clockTime"
+            style="@style/TextDefault"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="36sp" />
+
+        <TextClock
+            android:id="@+id/clockDate"
+            style="@style/TextSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:animateLayoutChanges="true"
@@ -33,8 +58,8 @@
             app:closeIcon="@null"
             app:iconifiedByDefault="false"
             app:queryBackground="@null"
-            app:queryHint=" ___"
-            app:searchIcon="@null"
+            app:queryHint="@string/fokus_search_hint"
+            app:searchIcon="@drawable/ic_search"
             app:theme="@style/AppSearchText" />
 
         <TextView
@@ -80,6 +105,16 @@
         android:layout_height="0dp"
         android:layout_weight="0.06" />
 
+    <LinearLayout
+        android:id="@+id/recentRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:minHeight="84dp"
+        android:orientation="horizontal"
+        android:paddingEnd="32dp"
+        android:visibility="gone" />
+
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -103,6 +138,20 @@
             android:layout_gravity="end"
             android:layout_marginVertical="8dp"
             android:visibility="invisible" />
+
+        <TextView
+            android:id="@+id/letterBubble"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_gravity="top|end"
+            android:layout_marginEnd="56dp"
+            android:background="@drawable/bg_letter_bubble"
+            android:elevation="8dp"
+            android:gravity="center"
+            android:textColor="?attr/primaryInverseColor"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
 
     </FrameLayout>
 

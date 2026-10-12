@@ -1,6 +1,18 @@
 package app.olauncher.ui
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.content.Context
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.util.TypedValue
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.Space
+import androidx.core.view.doOnNextLayout
+import app.olauncher.databinding.AdapterAppDrawerBinding
+import app.olauncher.helper.AppIconLoader
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
@@ -45,6 +57,10 @@ class AppDrawerFragment : BaseFragment() {
     private lateinit var gridLayoutManager: GridLayoutManager
     private var letterPositions: Map<Char, Int> = emptyMap()
     private var maxRecyclerHeight = 0
+    private var letterRuns: Map<Char, IntRange> = emptyMap()
+    private var flashToken = 0
+    private val flashedViews = mutableListOf<View>()
+    private val flashAnimators = mutableListOf<ValueAnimator>()
     private var searchTextView: TextView? = null
     private var cachedIsCjkKeyboard: Boolean? = null
 
@@ -71,6 +87,7 @@ class AppDrawerFragment : BaseFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         prefs = Prefs(requireContext())
+        AppIconLoader.shape = prefs.iconShape
         arguments?.let {
             flag = it.getInt(Constants.Key.FLAG, Constants.FLAG_LAUNCH_APP)
             canRename = it.getBoolean(Constants.Key.RENAME, false)
@@ -91,6 +108,8 @@ class AppDrawerFragment : BaseFragment() {
         else if (flag in Constants.FLAG_SET_HOME_APP_1..Constants.FLAG_SET_CALENDAR_APP)
             binding.search.queryHint = "Please select an app"
         updateTopActions()
+        updateClock()
+        tintSearchIcon()
         try {
             searchTextView = binding.search.findViewById(R.id.search_src_text)
             searchTextView?.gravity = prefs.appLabelAlignment
@@ -161,6 +180,8 @@ class AppDrawerFragment : BaseFragment() {
                 if (flag == Constants.FLAG_FOCUS_APPS) {
                     toggleFocusApp(appModel)
                 } else {
+                    if (flag == Constants.FLAG_LAUNCH_APP && appModel is AppModel.App)
+                        prefs.addRecentApp(appModel.appPackage + "|" + appModel.user.toString())
                     viewModel.selectedApp(appModel, flag)
                     if (flag == Constants.FLAG_LAUNCH_APP || flag == Constants.FLAG_HIDDEN_APPS)
                         findNavController().popBackStack(R.id.mainFragment, false)
@@ -276,9 +297,11 @@ class AppDrawerFragment : BaseFragment() {
         binding.recyclerView.layoutManager = gridLayoutManager
         adapter.focusKeys = if (flag == Constants.FLAG_FOCUS_APPS) prefs.focusApps else emptySet()
         adapter.onListChanged = { updateAlphabet() }
-        binding.alphabetIndex.onLetterSelected = { letter ->
-            letterPositions[letter]?.let { gridLayoutManager.scrollToPositionWithOffset(it, 0) }
+        binding.alphabetIndex.onLetterSelected = { letter, centerY ->
+            showLetterBubble(letter, centerY)
+            jumpToLetter(letter)
         }
+        binding.alphabetIndex.onTouchEnd = { hideLetterBubble() }
         // Size grid cells so that `drawerRows` rows fill the screen (largest height seen, ignores the keyboard)
         binding.recyclerView.addOnLayoutChangeListener { _, _, top, _, bottom, _, _, _, _ ->
             val height = bottom - top
@@ -290,6 +313,8 @@ class AppDrawerFragment : BaseFragment() {
         binding.recyclerView.adapter = adapter
         binding.recyclerView.addOnScrollListener(getRecyclerViewOnScrollListener())
         binding.recyclerView.itemAnimator = null
+        binding.recyclerView.setHasFixedSize(true)
+        binding.recyclerView.setItemViewCacheSize(30)
         if (requireContext().isEinkDisplay())
             binding.recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
         else if (requireContext().isSystemAnimationsDisabled().not())
@@ -310,6 +335,8 @@ class AppDrawerFragment : BaseFragment() {
             viewModel.appList.observe(viewLifecycleOwner) {
                 currentAppList = it
                 updateCombinedAppList()
+                it?.let { apps -> AppIconLoader.preload(requireContext(), apps) }
+                updateRecents()
             }
             if (flag == Constants.FLAG_LAUNCH_APP) {
                 viewModel.privateSpaceAvailable.observe(viewLifecycleOwner) {
@@ -497,17 +524,30 @@ class AppDrawerFragment : BaseFragment() {
         }
     }
 
-    /** Rebuilds the A-Z strip from the apps currently shown (first position of each letter). */
+    /** Rebuilds the A-Z strip from the apps currently shown (first position and run of each letter). */
     private fun updateAlphabet() {
         if (_binding == null) return
+        val list = adapter.appFilteredList
         val positions = LinkedHashMap<Char, Int>()
-        for ((index, app) in adapter.appFilteredList.withIndex()) {
+        for ((index, app) in list.withIndex()) {
             if (app is AppModel.PrivateSpaceHeader) break
             if (app.appPackage.isEmpty()) continue
             val letter = indexLetter(app.appLabel)
             if (!positions.containsKey(letter)) positions[letter] = index
         }
+        val runs = HashMap<Char, IntRange>()
+        for ((letter, start) in positions) {
+            var end = start
+            while (end + 1 < list.size) {
+                val next = list[end + 1]
+                if (next is AppModel.PrivateSpaceHeader || next.appPackage.isEmpty()) break
+                if (indexLetter(next.appLabel) != letter) break
+                end++
+            }
+            runs[letter] = start..end
+        }
         letterPositions = positions
+        letterRuns = runs
         binding.alphabetIndex.setLetters(positions.keys.toList())
     }
 
@@ -515,6 +555,151 @@ class AppDrawerFragment : BaseFragment() {
         val first = label.trim().firstOrNull() ?: return '#'
         val base = Normalizer.normalize(first.toString(), Normalizer.Form.NFD).firstOrNull() ?: first
         return if (base.isLetter()) base.uppercaseChar() else '#'
+    }
+
+    private fun themeColor(attr: Int, fallback: Int = Color.WHITE): Int {
+        val value = TypedValue()
+        return if (requireContext().theme.resolveAttribute(attr, value, true)) value.data else fallback
+    }
+
+    private fun tintSearchIcon() {
+        try {
+            binding.search.findViewById<ImageView>(R.id.search_mag_icon)
+                ?.setColorFilter(themeColor(R.attr.primaryColor))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /** Clock + day at the top. Follows "Show date & time" and "Clock format" in Settings. */
+    private fun updateClock() {
+        if (_binding == null) return
+        val wasVisible = binding.clockLayout.visibility == View.VISIBLE
+        val mode = prefs.dateTimeVisibility
+        val show = flag == Constants.FLAG_LAUNCH_APP && mode != Constants.DateTime.OFF
+        binding.clockLayout.visibility = if (show) View.VISIBLE else View.GONE
+        binding.clockTime.visibility =
+            if (mode == Constants.DateTime.DATE_ONLY) View.GONE else View.VISIBLE
+        val (format12, format24) = when (prefs.clockFormat) {
+            1 -> "HH:mm" to "HH:mm"
+            2 -> "h:mm a" to "h:mm a"
+            else -> "h:mm a" to "HH:mm"
+        }
+        binding.clockTime.format12Hour = format12
+        binding.clockTime.format24Hour = format24
+        binding.clockDate.format12Hour = "EEEE, d MMM"
+        binding.clockDate.format24Hour = "EEEE, d MMM"
+        // The list changes height when the clock appears/disappears: let the grid re-measure its cells
+        if (wasVisible != show) maxRecyclerHeight = 0
+    }
+
+    /** Row with the most recently launched apps, lined up with the grid columns. */
+    private fun updateRecents() {
+        if (_binding == null) return
+        val row = binding.recentRow
+        if (flag != Constants.FLAG_LAUNCH_APP) {
+            row.visibility = View.GONE
+            return
+        }
+        val columns = prefs.drawerColumns.coerceIn(3, 7)
+        val byKey = HashMap<String, AppModel.App>()
+        currentAppList.orEmpty().forEach {
+            if (it is AppModel.App) byKey[it.appPackage + "|" + it.user.toString()] = it
+        }
+        val recents = prefs.recentApps.mapNotNull { byKey[it] }.take(minOf(5, columns))
+
+        row.removeAllViews()
+        row.visibility = if (recents.isEmpty()) View.INVISIBLE else View.VISIBLE
+        for (app in recents) {
+            val cell = AdapterAppDrawerBinding.inflate(layoutInflater, row, false)
+            cell.root.layoutParams =
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            AppIconLoader.load(cell.appIcon, app)
+            cell.appTitle.text = app.appLabel
+            cell.root.setOnClickListener {
+                prefs.addRecentApp(app.appPackage + "|" + app.user.toString())
+                viewModel.selectedApp(app, Constants.FLAG_LAUNCH_APP)
+                findNavController().popBackStack(R.id.mainFragment, false)
+            }
+            row.addView(cell.root)
+        }
+        // Empty slots keep the cells aligned with the grid columns
+        repeat(columns - recents.size) {
+            row.addView(Space(requireContext()), LinearLayout.LayoutParams(0, 1, 1f))
+        }
+    }
+
+    private fun showLetterBubble(letter: Char, centerY: Float) {
+        val bubble = binding.letterBubble
+        bubble.text = letter.toString()
+        val bubbleHeight = bubble.layoutParams.height.toFloat()
+        val maxY = (binding.alphabetIndex.parent as View).height - bubbleHeight
+        bubble.translationY =
+            (binding.alphabetIndex.top + centerY - bubbleHeight / 2f).coerceIn(0f, maxOf(0f, maxY))
+        bubble.animate().cancel()
+        bubble.alpha = 1f
+        bubble.visibility = View.VISIBLE
+    }
+
+    private fun hideLetterBubble() {
+        if (_binding == null) return
+        val bubble = binding.letterBubble
+        bubble.animate().cancel()
+        bubble.animate().alpha(0f).setDuration(180).withEndAction {
+            bubble.visibility = View.GONE
+        }.start()
+    }
+
+    /** Scroll to a letter (from the side bar), then flash that letter's apps once. */
+    private fun jumpToLetter(letter: Char) {
+        val run = letterRuns[letter] ?: return
+        gridLayoutManager.scrollToPositionWithOffset(run.first, 0)
+        val token = ++flashToken
+        binding.recyclerView.doOnNextLayout {
+            if (token == flashToken && _binding != null) flashLetterApps(run)
+        }
+    }
+
+    private fun flashLetterApps(run: IntRange) {
+        clearFlash()
+        val glowColor = themeColor(R.attr.primaryColor)
+        val radius = 16f * resources.displayMetrics.density
+        for (position in run) {
+            val view = gridLayoutManager.findViewByPosition(position) ?: continue
+            val glow = GradientDrawable().apply {
+                cornerRadius = radius
+                setColor(glowColor)
+                alpha = 0
+            }
+            view.foreground = glow
+            val glowAnimator = ValueAnimator.ofInt(0, 90, 0).apply {
+                duration = 550
+                addUpdateListener { glow.alpha = it.animatedValue as Int }
+                addListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        view.foreground = null
+                    }
+                })
+            }
+            view.animate().scaleX(1.18f).scaleY(1.18f).setDuration(240).withEndAction {
+                view.animate().scaleX(1f).scaleY(1f).setDuration(240).start()
+            }.start()
+            glowAnimator.start()
+            flashedViews.add(view)
+            flashAnimators.add(glowAnimator)
+        }
+    }
+
+    private fun clearFlash() {
+        flashAnimators.forEach { it.cancel() }
+        flashAnimators.clear()
+        flashedViews.forEach {
+            it.animate().cancel()
+            it.scaleX = 1f
+            it.scaleY = 1f
+            it.foreground = null
+        }
+        flashedViews.clear()
     }
 
     override fun onStart() {
@@ -526,6 +711,14 @@ class AppDrawerFragment : BaseFragment() {
     override fun onResume() {
         super.onResume()
         updateTopActions()
+        updateClock()
+        if (AppIconLoader.shape != prefs.iconShape) {
+            // Icon shape was changed in Settings
+            AppIconLoader.shape = prefs.iconShape
+            adapter.notifyDataSetChanged()
+            currentAppList?.let { AppIconLoader.preload(requireContext(), it) }
+        }
+        updateRecents()
     }
 
     override fun onStop() {
@@ -535,6 +728,7 @@ class AppDrawerFragment : BaseFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        clearFlash()
         searchTextView = null
         _binding = null
     }

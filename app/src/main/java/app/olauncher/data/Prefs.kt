@@ -32,6 +32,9 @@ class Prefs(context: Context) {
     private val FOCUS_APPS = "FOCUS_APPS"
     private val DRAWER_COLUMNS = "DRAWER_COLUMNS"
     private val DRAWER_ROWS = "DRAWER_ROWS"
+    private val CLOCK_FORMAT = "CLOCK_FORMAT"
+    private val ICON_SHAPE = "ICON_SHAPE"
+    private val RECENT_APPS = "RECENT_APPS"
     private val HIDDEN_APPS_UPDATED = "HIDDEN_APPS_UPDATED"
     private val SHOW_HINT_COUNTER = "SHOW_HINT_COUNTER"
     private val APP_THEME = "APP_THEME"
@@ -252,8 +255,30 @@ class Prefs(context: Context) {
         set(value) = prefs.edit { putInt(DRAWER_COLUMNS, value).apply() }
 
     var drawerRows: Int
-        get() = prefs.getInt(DRAWER_ROWS, 6)
+        get() = prefs.getInt(DRAWER_ROWS, 5)
         set(value) = prefs.edit { putInt(DRAWER_ROWS, value).apply() }
+
+    // 0 = follow system, 1 = 24-hour, 2 = 12-hour
+    var clockFormat: Int
+        get() = prefs.getInt(CLOCK_FORMAT, 0)
+        set(value) = prefs.edit { putInt(CLOCK_FORMAT, value).apply() }
+
+    // 0 = circle, 1 = rounded square
+    var iconShape: Int
+        get() = prefs.getInt(ICON_SHAPE, 0)
+        set(value) = prefs.edit { putInt(ICON_SHAPE, value).apply() }
+
+    // Most recently launched apps ("package|user" keys), newest first
+    var recentApps: List<String>
+        get() = (prefs.getString(RECENT_APPS, "") ?: "").split("\n").filter { it.isNotBlank() }
+        set(value) = prefs.edit { putString(RECENT_APPS, value.joinToString("\n")).apply() }
+
+    fun addRecentApp(key: String) {
+        val list = recentApps.toMutableList()
+        list.remove(key)
+        list.add(0, key)
+        recentApps = list.take(12)
+    }
 
     var hiddenAppsUpdated: Boolean
         get() = prefs.getBoolean(HIDDEN_APPS_UPDATED, false)

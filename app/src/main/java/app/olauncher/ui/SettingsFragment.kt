@@ -88,6 +88,8 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         populateAlignment()
         populateStatusBar()
         populateDateTime()
+        populateClockFormat()
+        populateIconShape()
         populateSwipeApps()
         populateActionHints()
         initClickListeners()
@@ -114,6 +116,8 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             R.id.alignment -> showAlignmentMenu(view)
             R.id.statusBar -> toggleStatusBar()
             R.id.dateTime -> showDateTimeMenu(view)
+            R.id.clockFormat -> toggleClockFormat()
+            R.id.iconShape -> toggleIconShape()
             R.id.appThemeText -> showAppThemeMenu(view, showSystem = false)
             R.id.textSizeValue -> showTextSizeDialog()
             R.id.boldFont -> toggleBoldFont()
@@ -177,6 +181,8 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         binding.alignment.setOnClickListener(this)
         binding.statusBar.setOnClickListener(this)
         binding.dateTime.setOnClickListener(this)
+        binding.clockFormat.setOnClickListener(this)
+        binding.iconShape.setOnClickListener(this)
         binding.swipeLeftApp.setOnClickListener(this)
         binding.swipeRightApp.setOnClickListener(this)
         binding.appThemeText.setOnClickListener(this)
@@ -341,6 +347,32 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             requireActivity().window.hideStatusBar()
             binding.statusBar.text = getString(R.string.off)
         }
+    }
+
+    private fun populateClockFormat() {
+        binding.clockFormat.text = getString(
+            when (prefs.clockFormat) {
+                1 -> R.string.fokus_clock_24
+                2 -> R.string.fokus_clock_12
+                else -> R.string.fokus_clock_system
+            }
+        )
+    }
+
+    private fun toggleClockFormat() {
+        prefs.clockFormat = (prefs.clockFormat + 1) % 3
+        populateClockFormat()
+    }
+
+    private fun populateIconShape() {
+        binding.iconShape.text = getString(
+            if (prefs.iconShape == 1) R.string.fokus_shape_rounded else R.string.fokus_shape_circle
+        )
+    }
+
+    private fun toggleIconShape() {
+        prefs.iconShape = (prefs.iconShape + 1) % 2
+        populateIconShape()
     }
 
     private fun toggleDateTime(selected: Int) {

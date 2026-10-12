@@ -264,6 +264,12 @@ class AppDrawerAdapter(
                 return@with
             }
 
+            // Clear any left-over letter "flash" from a recycled view
+            root.animate().cancel()
+            root.scaleX = 1f
+            root.scaleY = 1f
+            root.foreground = null
+
             appIcon.visibility = View.VISIBLE
             AppIconLoader.load(appIcon, appModel)
 

@@ -21,7 +21,9 @@ class AlphabetIndexView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
 ) : View(context, attrs) {
 
-    var onLetterSelected: ((Char) -> Unit)? = null
+    // Called with the letter and the vertical centre of its slot (in this view's coordinates)
+    var onLetterSelected: ((Char, Float) -> Unit)? = null
+    var onTouchEnd: (() -> Unit)? = null
 
     private var letters: List<Char> = emptyList()
     private var activeIndex = -1
@@ -74,13 +76,15 @@ class AlphabetIndexView @JvmOverloads constructor(
                 if (index != activeIndex) {
                     activeIndex = index
                     performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                    onLetterSelected?.invoke(letters[index])
+                    val slot = height.toFloat() / letters.size
+                    onLetterSelected?.invoke(letters[index], slot * index + slot / 2f)
                     invalidate()
                 }
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 activeIndex = -1
+                onTouchEnd?.invoke()
                 invalidate()
             }
         }

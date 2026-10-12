@@ -182,4 +182,12 @@
     <string name="focus_exit_to_edit" translatable="false">Exit focus mode to change your focus apps</string>
     <string name="open_settings" translatable="false">Settings</string>
     <string name="app_info" translatable="false">App info</string>
+    <string name="fokus_search_hint" translatable="false">Search</string>
+    <string name="fokus_clock_format" translatable="false">Clock format</string>
+    <string name="fokus_clock_system" translatable="false">System</string>
+    <string name="fokus_clock_24" translatable="false">24-hour</string>
+    <string name="fokus_clock_12" translatable="false">12-hour</string>
+    <string name="fokus_icon_shape" translatable="false">Icon shape</string>
+    <string name="fokus_shape_circle" translatable="false">Circle</string>
+    <string name="fokus_shape_rounded" translatable="false">Rounded square</string>
 </resources>
