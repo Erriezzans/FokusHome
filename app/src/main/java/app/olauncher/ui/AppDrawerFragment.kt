@@ -13,9 +13,10 @@ import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
 import androidx.appcompat.widget.SearchView
+import androidx.core.os.bundleOf
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.Recycler
 import app.olauncher.MainViewModel
@@ -34,13 +35,16 @@ import app.olauncher.helper.openSearch
 import app.olauncher.helper.openUrl
 import app.olauncher.helper.showKeyboard
 import app.olauncher.helper.showToast
+import java.text.Normalizer
 import app.olauncher.helper.uninstall
 
 class AppDrawerFragment : BaseFragment() {
 
     private lateinit var prefs: Prefs
     private lateinit var adapter: AppDrawerAdapter
-    private lateinit var linearLayoutManager: LinearLayoutManager
+    private lateinit var gridLayoutManager: GridLayoutManager
+    private var letterPositions: Map<Char, Int> = emptyMap()
+    private var maxRecyclerHeight = 0
     private var searchTextView: TextView? = null
     private var cachedIsCjkKeyboard: Boolean? = null
 
@@ -82,8 +86,11 @@ class AppDrawerFragment : BaseFragment() {
     private fun initViews() {
         if (flag == Constants.FLAG_HIDDEN_APPS)
             binding.search.queryHint = getString(R.string.hidden_apps)
+        else if (flag == Constants.FLAG_FOCUS_APPS)
+            binding.search.queryHint = getString(R.string.focus_select_hint)
         else if (flag in Constants.FLAG_SET_HOME_APP_1..Constants.FLAG_SET_CALENDAR_APP)
             binding.search.queryHint = "Please select an app"
+        updateTopActions()
         try {
             searchTextView = binding.search.findViewById(R.id.search_src_text)
             searchTextView?.gravity = prefs.appLabelAlignment
@@ -151,11 +158,15 @@ class AppDrawerFragment : BaseFragment() {
             flag,
             prefs.appLabelAlignment,
             appClickListener = { appModel ->
-                viewModel.selectedApp(appModel, flag)
-                if (flag == Constants.FLAG_LAUNCH_APP || flag == Constants.FLAG_HIDDEN_APPS)
-                    findNavController().popBackStack(R.id.mainFragment, false)
-                else
-                    findNavController().popBackStack()
+                if (flag == Constants.FLAG_FOCUS_APPS) {
+                    toggleFocusApp(appModel)
+                } else {
+                    viewModel.selectedApp(appModel, flag)
+                    if (flag == Constants.FLAG_LAUNCH_APP || flag == Constants.FLAG_HIDDEN_APPS)
+                        findNavController().popBackStack(R.id.mainFragment, false)
+                    else
+                        findNavController().popBackStack()
+                }
             },
             appInfoListener = {
                 openAppInfo(
@@ -213,7 +224,7 @@ class AppDrawerFragment : BaseFragment() {
                     binding.search.hideKeyboard()
                     prefs.firstHide = false
                     viewModel.showDialog.postValue(Constants.Dialog.HIDDEN)
-                    findNavController().navigate(R.id.action_appListFragment_to_settingsFragment2)
+                    openSettings()
                 }
                 viewModel.getAppList()
                 viewModel.getHiddenApps()
@@ -236,21 +247,46 @@ class AppDrawerFragment : BaseFragment() {
             }
         )
 
-        linearLayoutManager = object : LinearLayoutManager(requireContext()) {
+        val spanCount = prefs.drawerColumns.coerceIn(3, 7)
+        gridLayoutManager = object : GridLayoutManager(requireContext(), spanCount) {
             override fun scrollVerticallyBy(
-                dx: Int,
+                dy: Int,
                 recycler: Recycler,
                 state: RecyclerView.State,
             ): Int {
-                val scrollRange = super.scrollVerticallyBy(dx, recycler, state)
-                val overScroll = dx - scrollRange
+                val scrollRange = super.scrollVerticallyBy(dy, recycler, state)
+                val overScroll = dy - scrollRange
                 if (overScroll < -10 && binding.recyclerView.scrollState == RecyclerView.SCROLL_STATE_DRAGGING)
                     checkMessageAndExit()
                 return scrollRange
             }
+        }.apply {
+            spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                override fun getSpanSize(position: Int): Int {
+                    val item = adapter.currentList.getOrNull(position)
+                    // Private space header and the bottom spacer take a full row
+                    return if (item is AppModel.PrivateSpaceHeader || (item != null && item.appPackage.isEmpty()))
+                        spanCount
+                    else
+                        1
+                }
+            }
         }
 
-        binding.recyclerView.layoutManager = linearLayoutManager
+        binding.recyclerView.layoutManager = gridLayoutManager
+        adapter.focusKeys = if (flag == Constants.FLAG_FOCUS_APPS) prefs.focusApps else emptySet()
+        adapter.onListChanged = { updateAlphabet() }
+        binding.alphabetIndex.onLetterSelected = { letter ->
+            letterPositions[letter]?.let { gridLayoutManager.scrollToPositionWithOffset(it, 0) }
+        }
+        // Size grid cells so that `drawerRows` rows fill the screen (largest height seen, ignores the keyboard)
+        binding.recyclerView.addOnLayoutChangeListener { _, _, top, _, bottom, _, _, _, _ ->
+            val height = bottom - top
+            if (height > maxRecyclerHeight) {
+                maxRecyclerHeight = height
+                binding.recyclerView.post { updateCellHeight() }
+            }
+        }
         binding.recyclerView.adapter = adapter
         binding.recyclerView.addOnScrollListener(getRecyclerViewOnScrollListener())
         binding.recyclerView.itemAnimator = null
@@ -296,7 +332,7 @@ class AppDrawerFragment : BaseFragment() {
         val apps = currentAppList ?: return
         val combined = apps.toMutableList()
 
-        if (flag == Constants.FLAG_LAUNCH_APP && currentPrivateSpaceAvailable) {
+        if (flag == Constants.FLAG_LAUNCH_APP && currentPrivateSpaceAvailable && !prefs.focusModeEnabled) {
             combined.add(AppModel.PrivateSpaceHeader(isLocked = currentPrivateSpaceLocked))
             if (!currentPrivateSpaceLocked) {
                 currentPrivateSpaceApps?.let { combined.addAll(it) }
@@ -308,6 +344,16 @@ class AppDrawerFragment : BaseFragment() {
     }
 
     private fun initClickListeners() {
+        binding.focusAction.setOnClickListener { onFocusActionClick() }
+        binding.focusAction.setOnLongClickListener {
+            if (flag != Constants.FLAG_LAUNCH_APP) return@setOnLongClickListener false
+            if (prefs.focusModeEnabled)
+                requireContext().showToast(R.string.focus_exit_to_edit)
+            else
+                openFocusPicker()
+            true
+        }
+        binding.settingsAction.setOnClickListener { openSettings() }
         binding.appRename.setOnClickListener {
             val name = binding.search.query.toString().trim()
             if (name.isEmpty()) {
@@ -358,15 +404,128 @@ class AppDrawerFragment : BaseFragment() {
     }
 
     private fun checkMessageAndExit() {
+        // The drawer is the home screen: nothing to exit to
+        if (findNavController().currentDestination?.id == R.id.mainFragment) return
         findNavController().popBackStack()
         if (flag == Constants.FLAG_LAUNCH_APP)
             viewModel.checkForMessages.call()
+    }
+
+    private fun isRoot() = findNavController().currentDestination?.id == R.id.mainFragment
+
+    private fun updateTopActions() {
+        when (flag) {
+            Constants.FLAG_FOCUS_APPS -> {
+                binding.focusAction.text = getString(R.string.focus_done)
+                binding.focusAction.visibility = View.VISIBLE
+                binding.settingsAction.visibility = View.GONE
+            }
+
+            Constants.FLAG_LAUNCH_APP -> {
+                binding.focusAction.text =
+                    getString(if (prefs.focusModeEnabled) R.string.focus_exit else R.string.focus_on)
+                binding.focusAction.visibility = View.VISIBLE
+                binding.settingsAction.visibility = View.VISIBLE
+            }
+
+            else -> {
+                binding.focusAction.visibility = View.GONE
+                binding.settingsAction.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun onFocusActionClick() {
+        when {
+            flag == Constants.FLAG_FOCUS_APPS -> findNavController().popBackStack()
+            prefs.focusModeEnabled -> setFocusMode(false)
+            prefs.focusApps.isEmpty() -> {
+                requireContext().showToast(R.string.focus_pick_first)
+                openFocusPicker()
+            }
+
+            else -> setFocusMode(true)
+        }
+    }
+
+    private fun setFocusMode(enabled: Boolean) {
+        prefs.focusModeEnabled = enabled
+        updateTopActions()
+        viewModel.getAppList()
+        binding.recyclerView.scrollToPosition(0)
+    }
+
+    private fun openFocusPicker() {
+        // Make sure the picker shows every app (focus mode is off here)
+        viewModel.getAppList()
+        findNavController().navigate(
+            R.id.action_mainFragment_to_appListFragment,
+            bundleOf(
+                Constants.Key.FLAG to Constants.FLAG_FOCUS_APPS,
+                Constants.Key.RENAME to false
+            )
+        )
+    }
+
+    private fun toggleFocusApp(appModel: AppModel) {
+        if (appModel !is AppModel.App || appModel.appPackage.isEmpty()) return
+        val key = appModel.appPackage + "|" + appModel.user.toString()
+        val focusApps = prefs.focusApps
+        if (!focusApps.add(key)) focusApps.remove(key)
+        prefs.focusApps = focusApps
+        adapter.focusKeys = focusApps
+        val index = adapter.appFilteredList.indexOf(appModel)
+        if (index >= 0) adapter.notifyItemChanged(index)
+    }
+
+    private fun openSettings() {
+        val navController = findNavController()
+        if (isRoot())
+            navController.navigate(R.id.action_mainFragment_to_settingsFragment)
+        else
+            navController.navigate(R.id.action_appListFragment_to_settingsFragment2)
+    }
+
+    private fun updateCellHeight() {
+        if (_binding == null) return
+        val rows = prefs.drawerRows.coerceAtLeast(1)
+        val usable = maxRecyclerHeight - binding.recyclerView.paddingTop - binding.recyclerView.paddingBottom
+        val cell = usable / rows
+        if (cell > 0 && cell != adapter.cellHeight) {
+            adapter.cellHeight = cell
+            adapter.notifyDataSetChanged()
+        }
+    }
+
+    /** Rebuilds the A-Z strip from the apps currently shown (first position of each letter). */
+    private fun updateAlphabet() {
+        if (_binding == null) return
+        val positions = LinkedHashMap<Char, Int>()
+        for ((index, app) in adapter.appFilteredList.withIndex()) {
+            if (app is AppModel.PrivateSpaceHeader) break
+            if (app.appPackage.isEmpty()) continue
+            val letter = indexLetter(app.appLabel)
+            if (!positions.containsKey(letter)) positions[letter] = index
+        }
+        letterPositions = positions
+        binding.alphabetIndex.setLetters(positions.keys.toList())
+    }
+
+    private fun indexLetter(label: String): Char {
+        val first = label.trim().firstOrNull() ?: return '#'
+        val base = Normalizer.normalize(first.toString(), Normalizer.Form.NFD).firstOrNull() ?: first
+        return if (base.isLetter()) base.uppercaseChar() else '#'
     }
 
     override fun onStart() {
         super.onStart()
         cachedIsCjkKeyboard = null
         binding.search.showKeyboard(prefs.autoShowKeyboard)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateTopActions()
     }
 
     override fun onStop() {

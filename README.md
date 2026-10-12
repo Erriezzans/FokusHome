@@ -1,47 +1,13 @@
-![Olauncher](https://repository-images.githubusercontent.com/278638069/db0acb80-661b-11eb-803e-926cae5dccb4)
+# FokusHome
 
+A minimal, focus-first Android launcher. The home screen **is** the app drawer: one vertical
+grid of app icons (5 columns, about 6 rows per screen), no widgets, no pages to swipe through.
 
-# Olauncher | Minimal AF Launcher
-AF stands for Ad-Free! :D
+- **Alphabet side bar** – drag along the A-Z strip on the right edge to jump to a letter.
+- **Focus mode** – tap `FOCUS` (long-press to choose which apps to keep). Every other app is hidden
+  until you tap `EXIT FOCUS`.
+- Long-press an app for App info / Uninstall / Hide / Rename.
+- Grid size can be changed in `Prefs.drawerColumns` / `Prefs.drawerRows` (no settings screen yet).
 
-[<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
-    alt="Get it on Play Store"
-    height="80" align="middle">](https://play.google.com/store/apps/details?id=app.olauncher)
-[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
-    alt="Get it on F-Droid"
-    height="80" align="middle">](https://f-droid.org/packages/app.olauncher)
-[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder_nofont.png"
-    alt="Get it on IzzyOnDroid"
-    height="54" hspace="13" align="middle">](https://apt.izzysoft.de/packages/app.olauncher)
-
-### Install using [Play Store](https://play.google.com/store/apps/details?id=app.olauncher), [F-Droid](https://f-droid.org/packages/app.olauncher), [IzzyOnDroid](https://apt.izzysoft.de/packages/app.olauncher) or the [latest APK](https://github.com/tanujnotes/Olauncher/releases/).
-
-- To maintain the simplicity of the launcher, a few niche features are available but hidden.
-
-- Please check out the **[About](https://tanujnotes.substack.com/p/olauncher-minimal-af-launcher?utm_source=github)** page in the Olauncher settings for a complete list of features and **FAQs**.
-
-##
-
-License: [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html)
-
-Contact: [X/Twitter](https://x.com/tanujnotes) • [Reddit](https://reddit.com/user/tanujnotes/) • [Bluesky](https://bsky.app/profile/tanujnotes.bsky.social)
-
-##
-
-### My other apps:
-
-- [Pro Launcher](https://play.google.com/store/apps/details?id=app.prolauncher) - Pro version of Olauncher with extra features like widgets, weather, folders, etc.
-
-- [Note to Self](https://play.google.com/store/apps/details?id=com.makenotetoself) - Free and [open source](https://github.com/jeerovan/ntsapp) notes app with chat like interface and end-to-end encryption.
-
-- [Pentastic](https://play.google.com/store/apps/details?id=app.pentastic) - Minimal todo lists. Free and [open source](https://github.com/tanujnotes/Pentastic).
-
-##
-
-### Help me get a new phone for testing:
-
-[<img src="https://img.buymeacoffee.com/button-api/?emoji=&slug=tanujnotes&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff"
-    alt="Get it on Play Store"
-    height="80">](https://www.buymeacoffee.com/tanujnotes)
-
-Thank you!
+FokusHome is a fork of [Olauncher](https://github.com/tanujnotes/Olauncher) by tanujnotes and is
+licensed under the GNU GPLv3 (see `LICENSE`). Original copyright notices are kept.

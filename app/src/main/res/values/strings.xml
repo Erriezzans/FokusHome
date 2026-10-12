@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name" translatable="false">Olauncher</string>
+    <string name="app_name" translatable="false">FokusHome</string>
     <string name="github" translatable="false">Github</string>
     <string name="lock_layout_description" translatable="false">lock layout description to be used a unique id to lock screen</string>
     <!-- Home button for recents feature disabled -->
@@ -173,4 +173,13 @@
     <string name="invalid_shortcut">Invalid shortcut</string>
     <string name="shortcut_not_found">Shortcut not found</string>
     <string name="unable_to_open_shortcut">Unable to open shortcut</string>
+
+    <string name="focus_on" translatable="false">Focus</string>
+    <string name="focus_exit" translatable="false">Exit focus</string>
+    <string name="focus_done" translatable="false">Done</string>
+    <string name="focus_select_hint" translatable="false">Tap apps to keep in focus</string>
+    <string name="focus_pick_first" translatable="false">Pick the apps to keep in focus mode</string>
+    <string name="focus_exit_to_edit" translatable="false">Exit focus mode to change your focus apps</string>
+    <string name="open_settings" translatable="false">Settings</string>
+    <string name="app_info" translatable="false">App info</string>
 </resources>

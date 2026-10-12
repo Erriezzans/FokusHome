@@ -49,6 +49,30 @@
             android:textAllCaps="true"
             android:visibility="gone" />
 
+        <TextView
+            android:id="@+id/focusAction"
+            style="@style/TextSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="16dp"
+            android:paddingVertical="@dimen/app_padding_vertical"
+            android:textAllCaps="true"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/settingsAction"
+            style="@style/TextSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="20dp"
+            android:alpha="0.6"
+            android:paddingVertical="@dimen/app_padding_vertical"
+            android:text="@string/open_settings"
+            android:textAllCaps="true"
+            android:visibility="gone" />
+
     </LinearLayout>
 
     <Space
@@ -56,15 +80,30 @@
         android:layout_height="0dp"
         android:layout_weight="0.06" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerView"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
         android:layout_marginBottom="24dp"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        android:fadingEdgeLength="24dp"
-        android:requiresFadingEdge="vertical" />
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:fadingEdgeLength="24dp"
+            android:paddingEnd="32dp"
+            android:requiresFadingEdge="vertical" />
+
+        <app.olauncher.ui.AlphabetIndexView
+            android:id="@+id/alphabetIndex"
+            android:layout_width="32dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="end"
+            android:layout_marginVertical="8dp"
+            android:visibility="invisible" />
+
+    </FrameLayout>
 
 </LinearLayout>

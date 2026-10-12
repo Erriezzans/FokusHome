@@ -28,6 +28,10 @@ class Prefs(context: Context) {
     private val SWIPE_LEFT_ENABLED = "SWIPE_LEFT_ENABLED"
     private val SWIPE_RIGHT_ENABLED = "SWIPE_RIGHT_ENABLED"
     private val HIDDEN_APPS = "HIDDEN_APPS"
+    private val FOCUS_MODE_ENABLED = "FOCUS_MODE_ENABLED"
+    private val FOCUS_APPS = "FOCUS_APPS"
+    private val DRAWER_COLUMNS = "DRAWER_COLUMNS"
+    private val DRAWER_ROWS = "DRAWER_ROWS"
     private val HIDDEN_APPS_UPDATED = "HIDDEN_APPS_UPDATED"
     private val SHOW_HINT_COUNTER = "SHOW_HINT_COUNTER"
     private val APP_THEME = "APP_THEME"
@@ -145,7 +149,7 @@ class Prefs(context: Context) {
         set(value) = prefs.edit { putBoolean(LOCK_MODE, value).apply() }
 
     var autoShowKeyboard: Boolean
-        get() = prefs.getBoolean(AUTO_SHOW_KEYBOARD, true)
+        get() = prefs.getBoolean(AUTO_SHOW_KEYBOARD, false)
         set(value) = prefs.edit { putBoolean(AUTO_SHOW_KEYBOARD, value).apply() }
 
     var keyboardMessageShown: Boolean
@@ -232,6 +236,24 @@ class Prefs(context: Context) {
     var hiddenApps: MutableSet<String>
         get() = prefs.getStringSet(HIDDEN_APPS, mutableSetOf()) as MutableSet<String>
         set(value) = prefs.edit { putStringSet(HIDDEN_APPS, value).apply() }
+
+    var focusModeEnabled: Boolean
+        get() = prefs.getBoolean(FOCUS_MODE_ENABLED, false)
+        set(value) = prefs.edit { putBoolean(FOCUS_MODE_ENABLED, value).apply() }
+
+    // Same "package|userHandle" key format as hiddenApps
+    var focusApps: MutableSet<String>
+        get() = HashSet(prefs.getStringSet(FOCUS_APPS, emptySet()) ?: emptySet())
+        set(value) = prefs.edit { putStringSet(FOCUS_APPS, HashSet(value)).apply() }
+
+    // App grid: number of columns, and how many rows fit on one screen
+    var drawerColumns: Int
+        get() = prefs.getInt(DRAWER_COLUMNS, 5)
+        set(value) = prefs.edit { putInt(DRAWER_COLUMNS, value).apply() }
+
+    var drawerRows: Int
+        get() = prefs.getInt(DRAWER_ROWS, 6)
+        set(value) = prefs.edit { putInt(DRAWER_ROWS, value).apply() }
 
     var hiddenAppsUpdated: Boolean
         get() = prefs.getBoolean(HIDDEN_APPS_UPDATED, false)

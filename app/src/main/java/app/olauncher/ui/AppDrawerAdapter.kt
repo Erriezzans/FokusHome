@@ -3,15 +3,14 @@ package app.olauncher.ui
 import android.content.Context
 import android.content.pm.LauncherApps
 import android.os.UserHandle
-import android.text.Editable
-import android.text.TextWatcher
+import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import android.widget.Filter
 import android.widget.Filterable
-import androidx.core.view.isVisible
+import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -20,9 +19,7 @@ import app.olauncher.data.AppModel
 import app.olauncher.data.Constants
 import app.olauncher.databinding.AdapterAppDrawerBinding
 import app.olauncher.databinding.AdapterPrivateSpaceHeaderBinding
-import app.olauncher.helper.hideKeyboard
-import app.olauncher.helper.isSystemApp
-import app.olauncher.helper.showKeyboard
+import app.olauncher.helper.AppIconLoader
 import java.text.Normalizer
 
 class AppDrawerAdapter(
@@ -66,6 +63,13 @@ class AppDrawerAdapter(
     private val separatorsRegex = Regex("[-_+,.`'\\s\\p{Z}]")
     private val appFilter = createAppFilter()
     private val myUserHandle = android.os.Process.myUserHandle()
+
+    // Focus-app picker: keys ("package|user") currently selected, and a hook fired after every list change
+    var focusKeys: Set<String> = emptySet()
+    var onListChanged: (() -> Unit)? = null
+
+    // Height of one grid cell in px (0 = wrap content until the screen has been measured)
+    var cellHeight = 0
 
     var appsList: MutableList<AppModel> = mutableListOf()
     var appFilteredList: MutableList<AppModel> = mutableListOf()
@@ -112,6 +116,8 @@ class AppDrawerAdapter(
 
                 is ViewHolder -> holder.bind(
                     flag,
+                    appModel is AppModel.App &&
+                        focusKeys.contains(appModel.appPackage + "|" + appModel.user.toString()),
                     appLabelGravity,
                     myUserHandle,
                     appModel,
@@ -119,7 +125,8 @@ class AppDrawerAdapter(
                     appDeleteListener,
                     appInfoListener,
                     appHideListener,
-                    appRenameListener
+                    appRenameListener,
+                    cellHeight
                 )
             }
         } catch (e: Exception) {
@@ -151,6 +158,7 @@ class AppDrawerAdapter(
                     val items = it as MutableList<AppModel>
                     appFilteredList = items
                     submitList(appFilteredList) {
+                        onListChanged?.invoke()
                         autoLaunch()
                     }
                 }
@@ -197,7 +205,7 @@ class AppDrawerAdapter(
         )
         this.appsList = appsList
         this.appFilteredList = appsList
-        submitList(appsList)
+        submitList(appsList) { onListChanged?.invoke() }
     }
 
     fun launchFirstInList() {
@@ -225,6 +233,7 @@ class AppDrawerAdapter(
         RecyclerView.ViewHolder(binding.root) {
         fun bind(
             flag: Int,
+            focusMarked: Boolean,
             appLabelGravity: Int,
             myUserHandle: UserHandle,
             appModel: AppModel,
@@ -233,113 +242,111 @@ class AppDrawerAdapter(
             appInfoListener: (AppModel) -> Unit,
             appHideListener: (AppModel, Int) -> Unit,
             appRenameListener: (AppModel, String) -> Unit,
+            cellHeight: Int,
         ) = with(binding) {
-            appHideLayout.visibility = View.GONE
-            renameLayout.visibility = View.GONE
-            appTitle.visibility = View.VISIBLE
+            // The blank item at the end of the list is only bottom padding
+            val isSpacer = appModel.appPackage.isEmpty()
 
-            // Show indicators in title based on app type and state
+            val params = root.layoutParams
+            params.height = when {
+                isSpacer -> (cellHeight / 2).coerceAtLeast(1)
+                cellHeight > 0 -> cellHeight
+                else -> ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+            root.layoutParams = params
+
+            if (isSpacer) {
+                appIcon.visibility = View.GONE
+                appTitle.text = ""
+                root.setOnClickListener(null)
+                root.setOnLongClickListener(null)
+                root.isClickable = false
+                return@with
+            }
+
+            appIcon.visibility = View.VISIBLE
+            AppIconLoader.load(appIcon, appModel)
+
             appTitle.text = buildString {
                 append(appModel.appLabel)
                 if (appModel.isNew) append(" ✦")
+                if (focusMarked) append(" ●")
             }
-            appTitle.gravity = appLabelGravity
-            otherProfileIndicator.isVisible = appModel.user != myUserHandle
+            // In the focus picker, dim the apps that are not selected
+            root.alpha = if (flag == Constants.FLAG_FOCUS_APPS && !focusMarked) 0.4f else 1f
 
-            appTitle.setOnClickListener { clickListener(appModel) }
-
-            appTitle.setOnLongClickListener {
-                if (appModel.appPackage.isNotEmpty()) {
-                    appDelete.alpha = when (
-                        appModel is AppModel.PinnedShortcut || !root.context.isSystemApp(appModel.appPackage, appModel.user)
-                    ) {
-                        true -> 1.0f
-                        false -> 0.5f
-                    }
-                    appHide.text = if (flag == Constants.FLAG_HIDDEN_APPS)
-                        root.context.getString(R.string.adapter_show)
-                    else
-                        root.context.getString(R.string.adapter_hide)
-                    appTitle.visibility = View.INVISIBLE
-                    appHide.alpha = when (appModel is AppModel.PinnedShortcut) {
-                        true -> 0.5f
-                        false -> 1.0f
-                    }
-                    appHideLayout.visibility = View.VISIBLE
-                    // Only allow renaming non hidden apps
-                    appRename.isVisible = flag != Constants.FLAG_HIDDEN_APPS
+            root.setOnClickListener { clickListener(appModel) }
+            root.setOnLongClickListener {
+                if (flag != Constants.FLAG_FOCUS_APPS) {
+                    showMenu(
+                        flag,
+                        appModel,
+                        appInfoListener,
+                        appDeleteListener,
+                        appHideListener,
+                        appRenameListener
+                    )
                 }
                 true
             }
+        }
 
-            // Configure rename behavior
-            appRename.setOnClickListener {
-                if (appModel.appPackage.isNotEmpty()) {
-                    etAppRename.hint = getAppName(etAppRename.context, appModel.appPackage, appModel.user)
-                    etAppRename.setText(appModel.appLabel)
-                    etAppRename.setSelectAllOnFocus(true)
-                    renameLayout.visibility = View.VISIBLE
-                    appHideLayout.visibility = View.GONE
-                    etAppRename.showKeyboard()
-                    etAppRename.imeOptions = EditorInfo.IME_ACTION_DONE
-                }
-            }
-            etAppRename.onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
-                appTitle.visibility = if (hasFocus) View.INVISIBLE else View.VISIBLE
-            }
-            etAppRename.addTextChangedListener(object : TextWatcher {
-                override fun afterTextChanged(s: Editable?) {
-                    etAppRename.hint = getAppName(etAppRename.context, appModel.appPackage, appModel.user)
-                }
+        private fun showMenu(
+            flag: Int,
+            appModel: AppModel,
+            appInfoListener: (AppModel) -> Unit,
+            appDeleteListener: (AppModel) -> Unit,
+            appHideListener: (AppModel, Int) -> Unit,
+            appRenameListener: (AppModel, String) -> Unit,
+        ) {
+            val context = binding.root.context
+            val isHiddenList = flag == Constants.FLAG_HIDDEN_APPS
+            val labels = mutableListOf<String>()
+            val actions = mutableListOf<() -> Unit>()
 
-                override fun beforeTextChanged(
-                    s: CharSequence?,
-                    start: Int,
-                    count: Int,
-                    after: Int,
-                ) {
-                }
-
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                    etAppRename.hint = ""
-                }
-            })
-            etAppRename.setOnEditorActionListener { _, actionCode, _ ->
-                if (actionCode == EditorInfo.IME_ACTION_DONE) {
-                    val renameLabel = etAppRename.text.toString().trim()
-                    if (renameLabel.isNotBlank() && appModel.appPackage.isNotBlank()) {
-                        appRenameListener(appModel, renameLabel)
-                        renameLayout.visibility = View.GONE
-                    }
-                    true
-                }
-                false
+            labels += context.getString(R.string.app_info)
+            actions += { appInfoListener(appModel) }
+            labels += context.getString(R.string.delete)
+            actions += { appDeleteListener(appModel) }
+            labels += context.getString(if (isHiddenList) R.string.adapter_show else R.string.adapter_hide)
+            actions += { appHideListener(appModel, bindingAdapterPosition) }
+            if (!isHiddenList) {
+                labels += context.getString(R.string.rename)
+                actions += { showRenameDialog(appModel, appRenameListener) }
             }
-            tvSaveRename.setOnClickListener {
-                etAppRename.hideKeyboard()
-                val renameLabel = etAppRename.text.toString().trim()
-                if (renameLabel.isNotBlank() && appModel.appPackage.isNotBlank()) {
-                    appRenameListener(appModel, renameLabel)
-                    renameLayout.visibility = View.GONE
-                } else {
+
+            AlertDialog.Builder(context)
+                .setTitle(appModel.appLabel)
+                .setItems(labels.toTypedArray()) { _, which -> actions[which]() }
+                .show()
+        }
+
+        private fun showRenameDialog(
+            appModel: AppModel,
+            appRenameListener: (AppModel, String) -> Unit,
+        ) {
+            val context = binding.root.context
+            val input = EditText(context).apply {
+                inputType = InputType.TYPE_CLASS_TEXT
+                setSingleLine()
+                hint = getAppName(context, appModel.appPackage, appModel.user)
+                setText(appModel.appLabel)
+                setSelectAllOnFocus(true)
+            }
+            val dialog = AlertDialog.Builder(context)
+                .setTitle(R.string.rename)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    val label = input.text.toString().trim()
+                    // Empty label resets to the original app name
                     appRenameListener(
                         appModel,
-                        getAppName(etAppRename.context, appModel.appPackage, appModel.user)
+                        label.ifBlank { getAppName(context, appModel.appPackage, appModel.user) }
                     )
-                    renameLayout.visibility = View.GONE
                 }
-            }
-            appInfo.setOnClickListener { appInfoListener(appModel) }
-            appDelete.setOnClickListener { appDeleteListener(appModel) }
-            appMenuClose.setOnClickListener {
-                appHideLayout.visibility = View.GONE
-                appTitle.visibility = View.VISIBLE
-            }
-            appRenameClose.setOnClickListener {
-                renameLayout.visibility = View.GONE
-                appTitle.visibility = View.VISIBLE
-            }
-            appHide.setOnClickListener { appHideListener(appModel, bindingAdapterPosition) }
+                .setNegativeButton(android.R.string.cancel, null)
+                .create()
+            dialog.setView(input, 48, 16, 48, 0)
+            dialog.show()
         }
 
         private fun getAppName(context: Context, appPackage: String, user: UserHandle): String {

@@ -76,6 +76,8 @@ suspend fun getAppsList(
         try {
             if (!Prefs(context).hiddenAppsUpdated) upgradeHiddenApps(Prefs(context))
             val hiddenApps = Prefs(context).hiddenApps
+            val focusOn = prefs.focusModeEnabled
+            val focusApps = prefs.focusApps
 
             val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
             val launcherApps =
@@ -104,8 +106,9 @@ suspend fun getAppsList(
                                 appList.add(appModel)
                             }
                         } else {
-                            // this is a regular app
-                            if (includeRegularApps) {
+                            // this is a regular app (in focus mode only focus apps are shown)
+                            val appKey = app.applicationInfo.packageName + "|" + profile.toString()
+                            if (includeRegularApps && (!focusOn || focusApps.contains(appKey))) {
                                 appList.add(appModel)
                             }
                         }
@@ -114,7 +117,7 @@ suspend fun getAppsList(
             }
 
             // Add shortcuts if we're getting regular apps
-            if (includeRegularApps && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (includeRegularApps && !focusOn && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val pinned = try {
                     getPinnedShortcuts(context, prefs, collator)
                 } catch (e: Exception) {
