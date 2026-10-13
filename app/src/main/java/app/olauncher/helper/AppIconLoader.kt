@@ -133,7 +133,8 @@ object AppIconLoader {
             drawable.draw(canvas)
         }
 
-        // Cut everything outside the chosen shape (anti-aliased edge)
+        // Clear everything outside the chosen shape (anti-aliased edge).
+        // A path drawn with CLEAR only touches its own pixels, so the path is inverted.
         val path = Path()
         if (shape == SHAPE_ROUNDED) {
             val radius = s * 0.3f
@@ -141,8 +142,9 @@ object AppIconLoader {
         } else {
             path.addCircle(s / 2f, s / 2f, s / 2f, Path.Direction.CW)
         }
+        path.fillType = Path.FillType.INVERSE_WINDING
         val mask = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+            xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
         }
         canvas.drawPath(path, mask)
         return bitmap

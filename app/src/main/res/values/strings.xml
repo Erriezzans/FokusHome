@@ -190,4 +190,10 @@
     <string name="fokus_icon_shape" translatable="false">Icon shape</string>
     <string name="fokus_shape_circle" translatable="false">Circle</string>
     <string name="fokus_shape_rounded" translatable="false">Rounded square</string>
+    <string name="fokus_recently_open" translatable="false">Recently open</string>
+    <string name="fokus_clear" translatable="false">Clear</string>
+    <string name="fokus_on" translatable="false">On</string>
+    <string name="fokus_off" translatable="false">Off</string>
+    <string name="fokus_recent_apps" translatable="false">Recent apps</string>
+    <string name="fokus_auto_open" translatable="false">Open app when search finds one match</string>
 </resources>

@@ -90,6 +90,8 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         populateDateTime()
         populateClockFormat()
         populateIconShape()
+        populateRecentApps()
+        populateAutoOpenSearch()
         populateSwipeApps()
         populateActionHints()
         initClickListeners()
@@ -118,6 +120,8 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             R.id.dateTime -> showDateTimeMenu(view)
             R.id.clockFormat -> toggleClockFormat()
             R.id.iconShape -> toggleIconShape()
+            R.id.recentAppsToggle -> toggleRecentApps()
+            R.id.autoOpenSearch -> toggleAutoOpenSearch()
             R.id.appThemeText -> showAppThemeMenu(view, showSystem = false)
             R.id.textSizeValue -> showTextSizeDialog()
             R.id.boldFont -> toggleBoldFont()
@@ -183,6 +187,8 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         binding.dateTime.setOnClickListener(this)
         binding.clockFormat.setOnClickListener(this)
         binding.iconShape.setOnClickListener(this)
+        binding.recentAppsToggle.setOnClickListener(this)
+        binding.autoOpenSearch.setOnClickListener(this)
         binding.swipeLeftApp.setOnClickListener(this)
         binding.swipeRightApp.setOnClickListener(this)
         binding.appThemeText.setOnClickListener(this)
@@ -362,6 +368,26 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
     private fun toggleClockFormat() {
         prefs.clockFormat = (prefs.clockFormat + 1) % 3
         populateClockFormat()
+    }
+
+    private fun populateRecentApps() {
+        binding.recentAppsToggle.text =
+            getString(if (prefs.showRecentApps) R.string.fokus_on else R.string.fokus_off)
+    }
+
+    private fun toggleRecentApps() {
+        prefs.showRecentApps = !prefs.showRecentApps
+        populateRecentApps()
+    }
+
+    private fun populateAutoOpenSearch() {
+        binding.autoOpenSearch.text =
+            getString(if (prefs.autoOpenSearch) R.string.fokus_on else R.string.fokus_off)
+    }
+
+    private fun toggleAutoOpenSearch() {
+        prefs.autoOpenSearch = !prefs.autoOpenSearch
+        populateAutoOpenSearch()
     }
 
     private fun populateIconShape() {

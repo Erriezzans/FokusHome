@@ -35,6 +35,8 @@ class Prefs(context: Context) {
     private val CLOCK_FORMAT = "CLOCK_FORMAT"
     private val ICON_SHAPE = "ICON_SHAPE"
     private val RECENT_APPS = "RECENT_APPS"
+    private val SHOW_RECENT_APPS = "SHOW_RECENT_APPS"
+    private val AUTO_OPEN_SEARCH = "AUTO_OPEN_SEARCH"
     private val HIDDEN_APPS_UPDATED = "HIDDEN_APPS_UPDATED"
     private val SHOW_HINT_COUNTER = "SHOW_HINT_COUNTER"
     private val APP_THEME = "APP_THEME"
@@ -255,7 +257,7 @@ class Prefs(context: Context) {
         set(value) = prefs.edit { putInt(DRAWER_COLUMNS, value).apply() }
 
     var drawerRows: Int
-        get() = prefs.getInt(DRAWER_ROWS, 5)
+        get() = prefs.getInt(DRAWER_ROWS, 6)
         set(value) = prefs.edit { putInt(DRAWER_ROWS, value).apply() }
 
     // 0 = follow system, 1 = 24-hour, 2 = 12-hour
@@ -272,6 +274,15 @@ class Prefs(context: Context) {
     var recentApps: List<String>
         get() = (prefs.getString(RECENT_APPS, "") ?: "").split("\n").filter { it.isNotBlank() }
         set(value) = prefs.edit { putString(RECENT_APPS, value.joinToString("\n")).apply() }
+
+    var showRecentApps: Boolean
+        get() = prefs.getBoolean(SHOW_RECENT_APPS, true)
+        set(value) = prefs.edit { putBoolean(SHOW_RECENT_APPS, value).apply() }
+
+    // Open the app automatically when the search leaves only one match (off by default)
+    var autoOpenSearch: Boolean
+        get() = prefs.getBoolean(AUTO_OPEN_SEARCH, false)
+        set(value) = prefs.edit { putBoolean(AUTO_OPEN_SEARCH, value).apply() }
 
     fun addRecentApp(key: String) {
         val list = recentApps.toMutableList()

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical|start"
+    android:orientation="vertical"
+    android:paddingStart="12dp">
+
+    <TextView
+        android:id="@+id/recentLabel"
+        style="@style/TextSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:alpha="0.6"
+        android:text="@string/fokus_recently_open"
+        android:textSize="11sp" />
+
+    <TextView
+        android:id="@+id/recentClear"
+        style="@style/TextSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingVertical="8dp"
+        android:text="@string/fokus_clear"
+        android:textAllCaps="true"
+        android:textSize="12sp" />
+
+</LinearLayout>

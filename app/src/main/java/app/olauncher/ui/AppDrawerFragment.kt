@@ -12,6 +12,7 @@ import android.widget.LinearLayout
 import android.widget.Space
 import androidx.core.view.doOnNextLayout
 import app.olauncher.databinding.AdapterAppDrawerBinding
+import app.olauncher.databinding.ViewRecentLabelBinding
 import app.olauncher.helper.AppIconLoader
 import android.os.Build
 import android.os.Bundle
@@ -113,6 +114,7 @@ class AppDrawerFragment : BaseFragment() {
         try {
             searchTextView = binding.search.findViewById(R.id.search_src_text)
             searchTextView?.gravity = prefs.appLabelAlignment
+            searchTextView?.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -297,6 +299,7 @@ class AppDrawerFragment : BaseFragment() {
         binding.recyclerView.layoutManager = gridLayoutManager
         adapter.focusKeys = if (flag == Constants.FLAG_FOCUS_APPS) prefs.focusApps else emptySet()
         adapter.onListChanged = { updateAlphabet() }
+        adapter.autoOpenOnSingleResult = prefs.autoOpenSearch
         binding.alphabetIndex.onLetterSelected = { letter, centerY ->
             showLetterBubble(letter, centerY)
             jumpToLetter(letter)
@@ -587,33 +590,57 @@ class AppDrawerFragment : BaseFragment() {
         }
         binding.clockTime.format12Hour = format12
         binding.clockTime.format24Hour = format24
-        binding.clockDate.format12Hour = "EEEE, d MMM"
-        binding.clockDate.format24Hour = "EEEE, d MMM"
+        binding.clockDate.format12Hour = "EEE, d MMM"
+        binding.clockDate.format24Hour = "EEE, d MMM"
         // The list changes height when the clock appears/disappears: let the grid re-measure its cells
         if (wasVisible != show) maxRecyclerHeight = 0
     }
 
-    /** Row with the most recently launched apps, lined up with the grid columns. */
+    /**
+     * Row with the most recently launched apps. A narrow label column ("Recently open" + "Clear")
+     * takes the first grid column, the apps fill the rest. The row is gone when there is nothing to show.
+     */
     private fun updateRecents() {
         if (_binding == null) return
         val row = binding.recentRow
-        if (flag != Constants.FLAG_LAUNCH_APP) {
-            row.visibility = View.GONE
-            return
-        }
+        val wasVisible = row.visibility == View.VISIBLE
         val columns = prefs.drawerColumns.coerceIn(3, 7)
-        val byKey = HashMap<String, AppModel.App>()
-        currentAppList.orEmpty().forEach {
-            if (it is AppModel.App) byKey[it.appPackage + "|" + it.user.toString()] = it
+
+        val recents = if (flag == Constants.FLAG_LAUNCH_APP && prefs.showRecentApps) {
+            val byKey = HashMap<String, AppModel.App>()
+            currentAppList.orEmpty().forEach {
+                if (it is AppModel.App) byKey[it.appPackage + "|" + it.user.toString()] = it
+            }
+            prefs.recentApps.mapNotNull { byKey[it] }.take(minOf(4, columns - 1))
+        } else {
+            emptyList()
         }
-        val recents = prefs.recentApps.mapNotNull { byKey[it] }.take(minOf(5, columns))
 
         row.removeAllViews()
-        row.visibility = if (recents.isEmpty()) View.INVISIBLE else View.VISIBLE
+        val show = recents.isNotEmpty()
+        row.visibility = if (show) View.VISIBLE else View.GONE
+        // The list changes height when the row appears/disappears: let the grid re-measure its cells
+        if (wasVisible != show) maxRecyclerHeight = 0
+        if (!show) return
+
+        val label = ViewRecentLabelBinding.inflate(layoutInflater, row, false)
+        label.root.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        label.recentClear.setOnClickListener {
+            prefs.recentApps = emptyList()
+            updateRecents()
+        }
+        row.addView(label.root)
+
+        val iconSize = (40 * resources.displayMetrics.density).toInt()
         for (app in recents) {
             val cell = AdapterAppDrawerBinding.inflate(layoutInflater, row, false)
             cell.root.layoutParams =
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            cell.appIcon.layoutParams = cell.appIcon.layoutParams.apply {
+                width = iconSize
+                height = iconSize
+            }
+            cell.appTitle.maxLines = 1
             AppIconLoader.load(cell.appIcon, app)
             cell.appTitle.text = app.appLabel
             cell.root.setOnClickListener {
@@ -624,7 +651,7 @@ class AppDrawerFragment : BaseFragment() {
             row.addView(cell.root)
         }
         // Empty slots keep the cells aligned with the grid columns
-        repeat(columns - recents.size) {
+        repeat(columns - 1 - recents.size) {
             row.addView(Space(requireContext()), LinearLayout.LayoutParams(0, 1, 1f))
         }
     }
@@ -712,6 +739,7 @@ class AppDrawerFragment : BaseFragment() {
         super.onResume()
         updateTopActions()
         updateClock()
+        adapter.autoOpenOnSingleResult = prefs.autoOpenSearch
         if (AppIconLoader.shape != prefs.iconShape) {
             // Icon shape was changed in Settings
             AppIconLoader.shape = prefs.iconShape

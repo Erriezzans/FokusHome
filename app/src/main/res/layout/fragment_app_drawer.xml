@@ -3,23 +3,20 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:animateLayoutChanges="true"
     android:background="?attr/primaryShadeDarkColor"
     android:orientation="vertical">
 
     <Space
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="24dp"
-        android:layout_weight="0.1" />
+        android:layout_height="12dp" />
 
     <LinearLayout
         android:id="@+id/clockLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:gravity="end"
-        android:orientation="vertical"
+        android:layout_marginBottom="2dp"
+        android:gravity="end|bottom"
+        android:orientation="horizontal"
         android:paddingEnd="20dp"
         android:visibility="gone">
 
@@ -28,13 +25,15 @@
             style="@style/TextDefault"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="36sp" />
+            android:textSize="30sp" />
 
         <TextClock
             android:id="@+id/clockDate"
             style="@style/TextSmall"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:paddingBottom="4dp" />
 
     </LinearLayout>
 
@@ -102,15 +101,14 @@
 
     <Space
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="0.06" />
+        android:layout_height="6dp" />
 
     <LinearLayout
         android:id="@+id/recentRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="4dp"
-        android:minHeight="84dp"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingEnd="32dp"
         android:visibility="gone" />
@@ -118,7 +116,7 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginBottom="24dp"
+        android:layout_marginBottom="16dp"
         android:layout_weight="1">
 
         <androidx.recyclerview.widget.RecyclerView
