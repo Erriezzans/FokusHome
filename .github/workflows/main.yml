@@ -3,6 +3,15 @@ name: Build APK
 on:
   push:
   workflow_dispatch:
+    inputs:
+      release:
+        description: "How to release: draft = private APK only you can see, public = everyone can see it, artifact = private zip download"
+        type: choice
+        default: draft
+        options:
+          - draft
+          - public
+          - artifact
 
 permissions:
   contents: write
@@ -34,9 +43,20 @@ jobs:
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "tag=${VERSION}-build${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
-      - name: Publish release with the APK
+      # draft (default, also for normal pushes) or public release with the APK attached
+      - name: Create release
+        if: github.event.inputs.release != 'artifact'
         uses: softprops/action-gh-release@v2
         with:
+          draft: ${{ github.event.inputs.release != 'public' }}
           tag_name: ${{ steps.apk.outputs.tag }}
           name: FokusHome ${{ steps.apk.outputs.tag }}
           files: ${{ steps.apk.outputs.name }}
+
+      # no release at all: just a private download in the run page (comes as a zip)
+      - name: Upload APK as artifact
+        if: github.event.inputs.release == 'artifact'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.name }}
+          path: ${{ steps.apk.outputs.name }}
