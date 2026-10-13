@@ -4,9 +4,12 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -17,13 +20,23 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APK
+      - name: Build APK
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Name the APK with its version
+        id: apk
+        run: |
+          VERSION=$(grep -m1 'versionName' app/build.gradle | sed 's/.*"\(.*\)".*/\1/')
+          NAME="FokusHome-${VERSION}-build${GITHUB_RUN_NUMBER}.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "tag=${VERSION}-build${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release with the APK
+        uses: softprops/action-gh-release@v2
         with:
-          name: FokusHome-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          tag_name: ${{ steps.apk.outputs.tag }}
+          name: FokusHome ${{ steps.apk.outputs.tag }}
+          files: ${{ steps.apk.outputs.name }}
