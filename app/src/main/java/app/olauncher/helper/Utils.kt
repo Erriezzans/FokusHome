@@ -69,6 +69,7 @@ suspend fun getAppsList(
     prefs: Prefs,
     includeRegularApps: Boolean = true,
     includeHiddenApps: Boolean = false,
+    ignoreFocus: Boolean = false,
 ): MutableList<AppModel> {
     return withContext(Dispatchers.IO) {
         val appList: MutableList<AppModel> = mutableListOf()
@@ -76,7 +77,7 @@ suspend fun getAppsList(
         try {
             if (!Prefs(context).hiddenAppsUpdated) upgradeHiddenApps(Prefs(context))
             val hiddenApps = Prefs(context).hiddenApps
-            val focusOn = prefs.focusModeEnabled
+            val focusOn = prefs.focusModeEnabled && !ignoreFocus
             val focusApps = prefs.focusApps
 
             val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager

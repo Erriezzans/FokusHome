@@ -8,6 +8,8 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.widget.ImageView
+import androidx.appcompat.app.AlertDialog
+import androidx.core.view.updatePadding
 import android.widget.LinearLayout
 import android.widget.Space
 import androidx.core.view.doOnNextLayout
@@ -58,6 +60,7 @@ class AppDrawerFragment : BaseFragment() {
     private lateinit var gridLayoutManager: GridLayoutManager
     private var letterPositions: Map<Char, Int> = emptyMap()
     private var maxRecyclerHeight = 0
+    private var needsListRefresh = false
     private var letterRuns: Map<Char, IntRange> = emptyMap()
     private var flashToken = 0
     private val flashedViews = mutableListOf<View>()
@@ -111,6 +114,7 @@ class AppDrawerFragment : BaseFragment() {
         updateTopActions()
         updateClock()
         tintSearchIcon()
+        leaveRoomForStatusBar()
         try {
             searchTextView = binding.search.findViewById(R.id.search_src_text)
             searchTextView?.gravity = prefs.appLabelAlignment
@@ -134,7 +138,6 @@ class AppDrawerFragment : BaseFragment() {
 
             override fun onQueryTextChange(newText: String): Boolean {
                 try {
-                    adapter.allowAutoLaunch = !isSearchComposing()
                     adapter.filter.filter(newText)
                     binding.appRename.visibility =
                         if (canRename && newText.isNotBlank()) View.VISIBLE else View.GONE
@@ -299,7 +302,6 @@ class AppDrawerFragment : BaseFragment() {
         binding.recyclerView.layoutManager = gridLayoutManager
         adapter.focusKeys = if (flag == Constants.FLAG_FOCUS_APPS) prefs.focusApps else emptySet()
         adapter.onListChanged = { updateAlphabet() }
-        adapter.autoOpenOnSingleResult = prefs.autoOpenSearch
         binding.alphabetIndex.onLetterSelected = { letter, centerY ->
             showLetterBubble(letter, centerY)
             jumpToLetter(letter)
@@ -378,10 +380,13 @@ class AppDrawerFragment : BaseFragment() {
         binding.focusAction.setOnLongClickListener {
             if (flag != Constants.FLAG_LAUNCH_APP) return@setOnLongClickListener false
             if (prefs.focusModeEnabled)
-                requireContext().showToast(R.string.focus_exit_to_edit)
-            else
                 openFocusPicker()
+            else
+                requireContext().showToast(R.string.fokus_enter_first)
             true
+        }
+        binding.exitAction.setOnClickListener {
+            confirm(R.string.fokus_confirm_exit) { setFocusMode(false) }
         }
         binding.settingsAction.setOnClickListener { openSettings() }
         binding.appRename.setOnClickListener {
@@ -448,18 +453,23 @@ class AppDrawerFragment : BaseFragment() {
             Constants.FLAG_FOCUS_APPS -> {
                 binding.focusAction.text = getString(R.string.focus_done)
                 binding.focusAction.visibility = View.VISIBLE
+                binding.exitAction.visibility = View.GONE
                 binding.settingsAction.visibility = View.GONE
             }
 
             Constants.FLAG_LAUNCH_APP -> {
+                val inFocus = prefs.focusModeEnabled
+                // Outside: "FOCUS". Inside the focus space: "FOCUS SPACE" + "EXIT"
                 binding.focusAction.text =
-                    getString(if (prefs.focusModeEnabled) R.string.focus_exit else R.string.focus_on)
+                    getString(if (inFocus) R.string.fokus_focus_space else R.string.focus_on)
                 binding.focusAction.visibility = View.VISIBLE
+                binding.exitAction.visibility = if (inFocus) View.VISIBLE else View.GONE
                 binding.settingsAction.visibility = View.VISIBLE
             }
 
             else -> {
                 binding.focusAction.visibility = View.GONE
+                binding.exitAction.visibility = View.GONE
                 binding.settingsAction.visibility = View.GONE
             }
         }
@@ -468,13 +478,41 @@ class AppDrawerFragment : BaseFragment() {
     private fun onFocusActionClick() {
         when {
             flag == Constants.FLAG_FOCUS_APPS -> findNavController().popBackStack()
-            prefs.focusModeEnabled -> setFocusMode(false)
-            prefs.focusApps.isEmpty() -> {
-                requireContext().showToast(R.string.focus_pick_first)
-                openFocusPicker()
-            }
+            prefs.focusModeEnabled -> requireContext().showToast(R.string.fokus_hold_to_edit)
+            else -> requestEnterFocus()
+        }
+    }
 
-            else -> setFocusMode(true)
+    /** First time: explain how focus mode works. Always: ask Yes/No before entering. */
+    private fun requestEnterFocus() {
+        val askToEnter = { confirm(R.string.fokus_confirm_enter) { enterFocusMode() } }
+        if (prefs.focusIntroShown) {
+            askToEnter()
+        } else {
+            AlertDialog.Builder(requireContext())
+                .setMessage(R.string.fokus_focus_intro)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    prefs.focusIntroShown = true
+                    askToEnter()
+                }
+                .show()
+        }
+    }
+
+    private fun confirm(messageRes: Int, onYes: () -> Unit) {
+        AlertDialog.Builder(requireContext())
+            .setMessage(messageRes)
+            .setPositiveButton(R.string.fokus_yes) { _, _ -> onYes() }
+            .setNegativeButton(R.string.fokus_no, null)
+            .show()
+    }
+
+    private fun enterFocusMode() {
+        setFocusMode(true)
+        // Nothing chosen yet: let the user pick the focus apps right away
+        if (prefs.focusApps.isEmpty()) {
+            requireContext().showToast(R.string.focus_pick_first)
+            openFocusPicker()
         }
     }
 
@@ -485,9 +523,10 @@ class AppDrawerFragment : BaseFragment() {
         binding.recyclerView.scrollToPosition(0)
     }
 
+    /** Edit the focus apps. Only reachable from inside the focus space; the picker shows every app. */
     private fun openFocusPicker() {
-        // Make sure the picker shows every app (focus mode is off here)
-        viewModel.getAppList()
+        needsListRefresh = true
+        viewModel.getAppList(ignoreFocus = true)
         findNavController().navigate(
             R.id.action_mainFragment_to_appListFragment,
             bundleOf(
@@ -495,6 +534,14 @@ class AppDrawerFragment : BaseFragment() {
                 Constants.Key.RENAME to false
             )
         )
+    }
+
+    /** The home screen is drawn under the translucent status bar: push our content below it. */
+    private fun leaveRoomForStatusBar() {
+        val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
+        val statusBarHeight = if (resId > 0) resources.getDimensionPixelSize(resId) else 0
+        val extra = (8 * resources.displayMetrics.density).toInt()
+        binding.root.updatePadding(top = binding.root.paddingTop + statusBarHeight + extra)
     }
 
     private fun toggleFocusApp(appModel: AppModel) {
@@ -567,8 +614,13 @@ class AppDrawerFragment : BaseFragment() {
 
     private fun tintSearchIcon() {
         try {
-            binding.search.findViewById<ImageView>(R.id.search_mag_icon)
-                ?.setColorFilter(themeColor(R.attr.primaryColor))
+            val searchIcon = binding.search.findViewById<ImageView>(R.id.search_mag_icon)
+            searchIcon?.setColorFilter(themeColor(R.attr.primaryColor))
+            // Tapping the magnifier starts a search, same as tapping the text
+            searchIcon?.setOnClickListener {
+                searchTextView?.requestFocus()
+                binding.search.showKeyboard(true)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -739,7 +791,11 @@ class AppDrawerFragment : BaseFragment() {
         super.onResume()
         updateTopActions()
         updateClock()
-        adapter.autoOpenOnSingleResult = prefs.autoOpenSearch
+        if (needsListRefresh && flag == Constants.FLAG_LAUNCH_APP) {
+            // Back from the focus picker: show only the focus apps again
+            needsListRefresh = false
+            viewModel.getAppList()
+        }
         if (AppIconLoader.shape != prefs.iconShape) {
             // Icon shape was changed in Settings
             AppIconLoader.shape = prefs.iconShape

@@ -79,9 +79,23 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
-            android:layout_marginEnd="16dp"
+            android:layout_marginEnd="12dp"
             android:paddingVertical="@dimen/app_padding_vertical"
             android:textAllCaps="true"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/exitAction"
+            style="@style/TextSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="12dp"
+            android:paddingVertical="@dimen/app_padding_vertical"
+            android:text="@string/fokus_exit"
+            android:textAllCaps="true"
+            android:textSize="13sp"
             android:visibility="gone" />
 
         <TextView
@@ -90,11 +104,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
-            android:layout_marginEnd="20dp"
+            android:layout_marginEnd="16dp"
             android:alpha="0.6"
             android:paddingVertical="@dimen/app_padding_vertical"
             android:text="@string/open_settings"
             android:textAllCaps="true"
+            android:textSize="13sp"
             android:visibility="gone" />
 
     </LinearLayout>

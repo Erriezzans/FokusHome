@@ -196,4 +196,13 @@
     <string name="fokus_off" translatable="false">Off</string>
     <string name="fokus_recent_apps" translatable="false">Recent apps</string>
     <string name="fokus_auto_open" translatable="false">Open app when search finds one match</string>
+    <string name="fokus_focus_space" translatable="false">Focus Space</string>
+    <string name="fokus_exit" translatable="false">Exit</string>
+    <string name="fokus_yes" translatable="false">Yes</string>
+    <string name="fokus_no" translatable="false">No</string>
+    <string name="fokus_confirm_enter" translatable="false">Enter focus mode?</string>
+    <string name="fokus_confirm_exit" translatable="false">Exit focus mode?</string>
+    <string name="fokus_focus_intro" translatable="false">Touch Focus to enter focus mode.\nHold Focus Space to edit your focus apps.</string>
+    <string name="fokus_hold_to_edit" translatable="false">Hold Focus Space to edit your focus apps</string>
+    <string name="fokus_enter_first" translatable="false">Enter focus mode first, then hold Focus Space to edit apps</string>
 </resources>

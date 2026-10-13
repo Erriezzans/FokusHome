@@ -36,7 +36,7 @@ class Prefs(context: Context) {
     private val ICON_SHAPE = "ICON_SHAPE"
     private val RECENT_APPS = "RECENT_APPS"
     private val SHOW_RECENT_APPS = "SHOW_RECENT_APPS"
-    private val AUTO_OPEN_SEARCH = "AUTO_OPEN_SEARCH"
+    private val FOCUS_INTRO_SHOWN = "FOCUS_INTRO_SHOWN"
     private val HIDDEN_APPS_UPDATED = "HIDDEN_APPS_UPDATED"
     private val SHOW_HINT_COUNTER = "SHOW_HINT_COUNTER"
     private val APP_THEME = "APP_THEME"
@@ -279,10 +279,10 @@ class Prefs(context: Context) {
         get() = prefs.getBoolean(SHOW_RECENT_APPS, true)
         set(value) = prefs.edit { putBoolean(SHOW_RECENT_APPS, value).apply() }
 
-    // Open the app automatically when the search leaves only one match (off by default)
-    var autoOpenSearch: Boolean
-        get() = prefs.getBoolean(AUTO_OPEN_SEARCH, false)
-        set(value) = prefs.edit { putBoolean(AUTO_OPEN_SEARCH, value).apply() }
+    // The first-time "how focus mode works" reminder has been shown
+    var focusIntroShown: Boolean
+        get() = prefs.getBoolean(FOCUS_INTRO_SHOWN, false)
+        set(value) = prefs.edit { putBoolean(FOCUS_INTRO_SHOWN, value).apply() }
 
     fun addRecentApp(key: String) {
         val list = recentApps.toMutableList()

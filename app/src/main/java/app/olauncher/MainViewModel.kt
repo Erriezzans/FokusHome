@@ -398,9 +398,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun getAppList(includeHiddenApps: Boolean = false) {
+    fun getAppList(includeHiddenApps: Boolean = false, ignoreFocus: Boolean = false) {
         viewModelScope.launch {
-            val apps = getAppsList(appContext, prefs, includeRegularApps = true, includeHiddenApps)
+            val apps = getAppsList(
+                appContext,
+                prefs,
+                includeRegularApps = true,
+                includeHiddenApps = includeHiddenApps,
+                ignoreFocus = ignoreFocus
+            )
             appList.value = apps
         }
         getPrivateSpaceAppList()

@@ -56,11 +56,7 @@ class AppDrawerAdapter(
         }
     }
 
-    private var autoLaunch = true
     private var isBangSearch = false
-    var allowAutoLaunch = true
-    // Set from Settings: open the app by itself when the search leaves a single match
-    var autoOpenOnSingleResult = false
     private val diacriticsRegex = Regex("\\p{InCombiningDiacriticalMarks}+")
     private val separatorsRegex = Regex("[-_+,.`'\\s\\p{Z}]")
     private val appFilter = createAppFilter()
@@ -142,7 +138,6 @@ class AppDrawerAdapter(
         return object : Filter() {
             override fun performFiltering(charSearch: CharSequence?): FilterResults {
                 isBangSearch = charSearch?.startsWith("!") ?: false
-                autoLaunch = allowAutoLaunch && (charSearch?.startsWith(" ")?.not() ?: true)
 
                 val appFilteredList = (if (charSearch.isNullOrBlank()) appsList
                 else appsList.filter { app ->
@@ -161,25 +156,9 @@ class AppDrawerAdapter(
                     appFilteredList = items
                     submitList(appFilteredList) {
                         onListChanged?.invoke()
-                        autoLaunch()
                     }
                 }
             }
-        }
-    }
-
-    private fun autoLaunch() {
-        try {
-            if (autoOpenOnSingleResult
-                && itemCount == 1
-                && autoLaunch
-                && isBangSearch.not()
-                && flag == Constants.FLAG_LAUNCH_APP
-                && appFilteredList.isNotEmpty()
-                && appFilteredList[0] !is AppModel.PrivateSpaceHeader
-            ) appClickListener(appFilteredList[0])
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 
