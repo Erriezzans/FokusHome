@@ -17,6 +17,7 @@
         android:layout_marginBottom="2dp"
         android:gravity="end|bottom"
         android:orientation="horizontal"
+        android:paddingStart="20dp"
         android:paddingEnd="20dp"
         android:visibility="gone">
 

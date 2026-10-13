@@ -398,8 +398,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private var appListJob: Job? = null
+
     fun getAppList(includeHiddenApps: Boolean = false, ignoreFocus: Boolean = false) {
-        viewModelScope.launch {
+        // A newer request replaces the one still running, so an old result can't overwrite a new one
+        appListJob?.cancel()
+        appListJob = viewModelScope.launch {
             val apps = getAppsList(
                 appContext,
                 prefs,

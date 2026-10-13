@@ -10,7 +10,9 @@ import android.util.TypedValue
 import android.widget.ImageView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.updatePadding
+import android.view.Gravity
 import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.Space
 import androidx.core.view.doOnNextLayout
 import app.olauncher.databinding.AdapterAppDrawerBinding
@@ -61,6 +63,9 @@ class AppDrawerFragment : BaseFragment() {
     private var letterPositions: Map<Char, Int> = emptyMap()
     private var maxRecyclerHeight = 0
     private var needsListRefresh = false
+    private var hintPopup: PopupWindow? = null
+    // Focus picker: apps that were already picked when it opened (listed first, kept out of the A-Z bar)
+    private var focusPinned: Set<String> = emptySet()
     private var letterRuns: Map<Char, IntRange> = emptyMap()
     private var flashToken = 0
     private val flashedViews = mutableListOf<View>()
@@ -301,6 +306,7 @@ class AppDrawerFragment : BaseFragment() {
 
         binding.recyclerView.layoutManager = gridLayoutManager
         adapter.focusKeys = if (flag == Constants.FLAG_FOCUS_APPS) prefs.focusApps else emptySet()
+        focusPinned = if (flag == Constants.FLAG_FOCUS_APPS) prefs.focusApps else emptySet()
         adapter.onListChanged = { updateAlphabet() }
         binding.alphabetIndex.onLetterSelected = { letter, centerY ->
             showLetterBubble(letter, centerY)
@@ -369,6 +375,15 @@ class AppDrawerFragment : BaseFragment() {
             if (!currentPrivateSpaceLocked) {
                 currentPrivateSpaceApps?.let { combined.addAll(it) }
             }
+        }
+
+        if (flag == Constants.FLAG_FOCUS_APPS && focusPinned.isNotEmpty()) {
+            val (picked, rest) = combined.partition {
+                it is AppModel.App && focusPinned.contains(it.appPackage + "|" + it.user.toString())
+            }
+            combined.clear()
+            combined.addAll(picked)
+            combined.addAll(rest)
         }
 
         adapter.setAppList(combined)
@@ -478,7 +493,7 @@ class AppDrawerFragment : BaseFragment() {
     private fun onFocusActionClick() {
         when {
             flag == Constants.FLAG_FOCUS_APPS -> findNavController().popBackStack()
-            prefs.focusModeEnabled -> requireContext().showToast(R.string.fokus_hold_to_edit)
+            prefs.focusModeEnabled -> showEditHint()
             else -> requestEnterFocus()
         }
     }
@@ -508,11 +523,17 @@ class AppDrawerFragment : BaseFragment() {
     }
 
     private fun enterFocusMode() {
-        setFocusMode(true)
-        // Nothing chosen yet: let the user pick the focus apps right away
+        prefs.focusModeEnabled = true
+        updateTopActions()
+        binding.recyclerView.scrollToPosition(0)
         if (prefs.focusApps.isEmpty()) {
+            // Nothing picked yet: go straight to the picker. It loads every app by itself,
+            // so no focus-only list is loaded at the same time.
             requireContext().showToast(R.string.focus_pick_first)
             openFocusPicker()
+        } else {
+            viewModel.getAppList()
+            binding.focusAction.post { showEditHint() }
         }
     }
 
@@ -525,6 +546,7 @@ class AppDrawerFragment : BaseFragment() {
 
     /** Edit the focus apps. Only reachable from inside the focus space; the picker shows every app. */
     private fun openFocusPicker() {
+        hintPopup?.dismiss()
         needsListRefresh = true
         viewModel.getAppList(ignoreFocus = true)
         findNavController().navigate(
@@ -534,6 +556,39 @@ class AppDrawerFragment : BaseFragment() {
                 Constants.Key.RENAME to false
             )
         )
+    }
+
+    /** Small bubble above "FOCUS SPACE": how to edit the focus apps. */
+    private fun showEditHint() {
+        if (_binding == null || flag != Constants.FLAG_LAUNCH_APP || !prefs.focusModeEnabled) return
+        hintPopup?.dismiss()
+        val anchor = binding.focusAction
+        val density = resources.displayMetrics.density
+        val bubble = TextView(requireContext()).apply {
+            text = getString(R.string.fokus_hold_hint)
+            setTextColor(themeColor(R.attr.primaryInverseColor, Color.BLACK))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setBackgroundResource(R.drawable.bg_hint_bubble)
+            setPadding((12 * density).toInt(), (8 * density).toInt(), (12 * density).toInt(), (8 * density).toInt())
+        }
+        bubble.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        val popup = PopupWindow(
+            bubble,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        popup.isOutsideTouchable = true
+        popup.isFocusable = false
+        popup.elevation = 8 * density
+        popup.showAsDropDown(
+            anchor,
+            (anchor.width - bubble.measuredWidth) / 2,
+            -(anchor.height + bubble.measuredHeight + (4 * density).toInt())
+        )
+        hintPopup = popup
+        anchor.postDelayed({
+            if (hintPopup === popup) popup.dismiss()
+        }, 2500)
     }
 
     /** The home screen is drawn under the translucent status bar: push our content below it. */
@@ -582,6 +637,7 @@ class AppDrawerFragment : BaseFragment() {
         for ((index, app) in list.withIndex()) {
             if (app is AppModel.PrivateSpaceHeader) break
             if (app.appPackage.isEmpty()) continue
+            if (app is AppModel.App && focusPinned.contains(app.appPackage + "|" + app.user.toString())) continue
             val letter = indexLetter(app.appLabel)
             if (!positions.containsKey(letter)) positions[letter] = index
         }
@@ -639,6 +695,11 @@ class AppDrawerFragment : BaseFragment() {
             1 -> "HH:mm" to "HH:mm"
             2 -> "h:mm a" to "h:mm a"
             else -> "h:mm a" to "HH:mm"
+        }
+        binding.clockLayout.gravity = when (prefs.clockAlignment) {
+            0 -> Gravity.START or Gravity.BOTTOM
+            1 -> Gravity.CENTER_HORIZONTAL or Gravity.BOTTOM
+            else -> Gravity.END or Gravity.BOTTOM
         }
         binding.clockTime.format12Hour = format12
         binding.clockTime.format24Hour = format24
@@ -813,6 +874,7 @@ class AppDrawerFragment : BaseFragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         clearFlash()
+        hintPopup?.dismiss()
         searchTextView = null
         _binding = null
     }

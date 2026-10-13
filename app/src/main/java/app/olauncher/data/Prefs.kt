@@ -37,6 +37,7 @@ class Prefs(context: Context) {
     private val RECENT_APPS = "RECENT_APPS"
     private val SHOW_RECENT_APPS = "SHOW_RECENT_APPS"
     private val FOCUS_INTRO_SHOWN = "FOCUS_INTRO_SHOWN"
+    private val CLOCK_ALIGNMENT = "CLOCK_ALIGNMENT"
     private val HIDDEN_APPS_UPDATED = "HIDDEN_APPS_UPDATED"
     private val SHOW_HINT_COUNTER = "SHOW_HINT_COUNTER"
     private val APP_THEME = "APP_THEME"
@@ -264,6 +265,11 @@ class Prefs(context: Context) {
     var clockFormat: Int
         get() = prefs.getInt(CLOCK_FORMAT, 0)
         set(value) = prefs.edit { putInt(CLOCK_FORMAT, value).apply() }
+
+    // 0 = left, 1 = center, 2 = right
+    var clockAlignment: Int
+        get() = prefs.getInt(CLOCK_ALIGNMENT, 2)
+        set(value) = prefs.edit { putInt(CLOCK_ALIGNMENT, value).apply() }
 
     // 0 = circle, 1 = rounded square
     var iconShape: Int

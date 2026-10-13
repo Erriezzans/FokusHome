@@ -89,6 +89,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         populateStatusBar()
         populateDateTime()
         populateClockFormat()
+        populateClockAlignment()
         populateIconShape()
         populateRecentApps()
         populateSwipeApps()
@@ -118,6 +119,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             R.id.statusBar -> toggleStatusBar()
             R.id.dateTime -> showDateTimeMenu(view)
             R.id.clockFormat -> toggleClockFormat()
+            R.id.clockAlignment -> toggleClockAlignment()
             R.id.iconShape -> toggleIconShape()
             R.id.recentAppsToggle -> toggleRecentApps()
             R.id.appThemeText -> showAppThemeMenu(view, showSystem = false)
@@ -184,6 +186,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         binding.statusBar.setOnClickListener(this)
         binding.dateTime.setOnClickListener(this)
         binding.clockFormat.setOnClickListener(this)
+        binding.clockAlignment.setOnClickListener(this)
         binding.iconShape.setOnClickListener(this)
         binding.recentAppsToggle.setOnClickListener(this)
         binding.swipeLeftApp.setOnClickListener(this)
@@ -375,6 +378,21 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
     private fun toggleRecentApps() {
         prefs.showRecentApps = !prefs.showRecentApps
         populateRecentApps()
+    }
+
+    private fun populateClockAlignment() {
+        binding.clockAlignment.text = getString(
+            when (prefs.clockAlignment) {
+                0 -> R.string.fokus_align_left
+                1 -> R.string.fokus_align_center
+                else -> R.string.fokus_align_right
+            }
+        )
+    }
+
+    private fun toggleClockAlignment() {
+        prefs.clockAlignment = (prefs.clockAlignment + 1) % 3
+        populateClockAlignment()
     }
 
     private fun populateIconShape() {

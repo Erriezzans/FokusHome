@@ -205,4 +205,9 @@
     <string name="fokus_focus_intro" translatable="false">Touch Focus to enter focus mode.\nHold Focus Space to edit your focus apps.</string>
     <string name="fokus_hold_to_edit" translatable="false">Hold Focus Space to edit your focus apps</string>
     <string name="fokus_enter_first" translatable="false">Enter focus mode first, then hold Focus Space to edit apps</string>
+    <string name="fokus_clock_align" translatable="false">Clock alignment</string>
+    <string name="fokus_align_left" translatable="false">Left</string>
+    <string name="fokus_align_center" translatable="false">Center</string>
+    <string name="fokus_align_right" translatable="false">Right</string>
+    <string name="fokus_hold_hint" translatable="false">Hold to edit focus apps</string>
 </resources>
