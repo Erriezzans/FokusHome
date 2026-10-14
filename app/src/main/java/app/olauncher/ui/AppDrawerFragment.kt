@@ -18,6 +18,7 @@ import androidx.core.view.doOnNextLayout
 import app.olauncher.databinding.AdapterAppDrawerBinding
 import app.olauncher.databinding.ViewRecentLabelBinding
 import app.olauncher.helper.AppIconLoader
+import app.olauncher.helper.WallpaperHelper
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
@@ -118,6 +119,7 @@ class AppDrawerFragment : BaseFragment() {
             binding.search.queryHint = "Please select an app"
         updateTopActions()
         updateClock()
+        applyWallpaper()
         tintSearchIcon()
         leaveRoomForStatusBar()
         try {
@@ -558,6 +560,16 @@ class AppDrawerFragment : BaseFragment() {
         )
     }
 
+    /** FokusHome-only wallpaper: plain color or own image. Default keeps the phone wallpaper showing through. */
+    private fun applyWallpaper() {
+        if (_binding == null) return
+        val background = WallpaperHelper.background(requireContext(), prefs)
+        if (background != null)
+            binding.root.background = background
+        else
+            binding.root.setBackgroundColor(themeColor(R.attr.primaryShadeDarkColor, Color.TRANSPARENT))
+    }
+
     /** Small bubble above "FOCUS SPACE": how to edit the focus apps. */
     private fun showEditHint() {
         if (_binding == null || flag != Constants.FLAG_LAUNCH_APP || !prefs.focusModeEnabled) return
@@ -852,6 +864,7 @@ class AppDrawerFragment : BaseFragment() {
         super.onResume()
         updateTopActions()
         updateClock()
+        applyWallpaper()
         if (needsListRefresh && flag == Constants.FLAG_LAUNCH_APP) {
             // Back from the focus picker: show only the focus apps again
             needsListRefresh = false

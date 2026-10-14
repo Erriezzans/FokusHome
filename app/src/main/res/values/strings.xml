@@ -210,4 +210,13 @@
     <string name="fokus_align_center" translatable="false">Center</string>
     <string name="fokus_align_right" translatable="false">Right</string>
     <string name="fokus_hold_hint" translatable="false">Hold to edit focus apps</string>
+    <string name="fokus_wallpaper" translatable="false">Wallpaper</string>
+    <string name="fokus_wp_phone" translatable="false">Phone wallpaper</string>
+    <string name="fokus_wp_color" translatable="false">Plain color</string>
+    <string name="fokus_wp_image" translatable="false">My image</string>
+    <string name="fokus_wp_color_title" translatable="false">Plain color</string>
+    <string name="fokus_wp_default_title" translatable="false">Default wallpaper</string>
+    <string name="fokus_wp_pick_image" translatable="false">Pick my own image</string>
+    <string name="fokus_wp_custom" translatable="false">Choose a color</string>
+    <string name="fokus_wp_image_failed" translatable="false">Could not use that image</string>
 </resources>

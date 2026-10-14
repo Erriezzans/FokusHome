@@ -1,0 +1,461 @@
+diff --git a/app/build.gradle b/app/build.gradle
+index eb06506..4fd5ed4 100644
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -18,12 +18,24 @@ android {
+         minSdkVersion 24
+         targetSdkVersion 36
+         versionCode 113
+-        versionName "v6.9.17"
++        versionName "v1.0.0"
+ 
+         resourceConfigurations += ["en", "ar", "cs", "da", "de", "el", "es-rES", "es-rUS", "fi", "fr", "he", "hi", "hr", "hu", "in", "it", "ja", "ko", "nb", "nl", "pl", "pt-rBR", "ro", "ru-rRU", "sv", "th", "tr", "uk", "vi", "zh"]
+         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+     }
+ 
++    // One fixed key for every build, so a new APK installs over the old one.
++    // (Not secret: fine for a personal launcher you sideload yourself.)
++    signingConfigs {
++        debug {
++            storeFile file('fokushome-signing.p12')
++            storePassword 'fokushome'
++            keyAlias 'fokushome'
++            keyPassword 'fokushome'
++            storeType 'pkcs12'
++        }
++    }
++
+     buildTypes {
+         release {
+             debuggable false
+diff --git a/app/fokushome-signing.p12 b/app/fokushome-signing.p12
+new file mode 100644
+index 0000000000000000000000000000000000000000..0f64865767f4f70e82a793e95628a35d4aa4bfad
+GIT binary patch
+literal 2574
+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
+F{TGXNo^k*H
+
+literal 0
+HcmV?d00001
+
+diff --git a/app/src/main/java/app/olauncher/MainViewModel.kt b/app/src/main/java/app/olauncher/MainViewModel.kt
+index f2c87b0..f584fb4 100644
+--- a/app/src/main/java/app/olauncher/MainViewModel.kt
++++ b/app/src/main/java/app/olauncher/MainViewModel.kt
+@@ -398,8 +398,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
+         }
+     }
+ 
++    private var appListJob: Job? = null
++
+     fun getAppList(includeHiddenApps: Boolean = false, ignoreFocus: Boolean = false) {
+-        viewModelScope.launch {
++        // A newer request replaces the one still running, so an old result can't overwrite a new one
++        appListJob?.cancel()
++        appListJob = viewModelScope.launch {
+             val apps = getAppsList(
+                 appContext,
+                 prefs,
+diff --git a/app/src/main/java/app/olauncher/data/Prefs.kt b/app/src/main/java/app/olauncher/data/Prefs.kt
+index a0571a1..eb1825e 100644
+--- a/app/src/main/java/app/olauncher/data/Prefs.kt
++++ b/app/src/main/java/app/olauncher/data/Prefs.kt
+@@ -37,6 +37,7 @@ class Prefs(context: Context) {
+     private val RECENT_APPS = "RECENT_APPS"
+     private val SHOW_RECENT_APPS = "SHOW_RECENT_APPS"
+     private val FOCUS_INTRO_SHOWN = "FOCUS_INTRO_SHOWN"
++    private val CLOCK_ALIGNMENT = "CLOCK_ALIGNMENT"
+     private val HIDDEN_APPS_UPDATED = "HIDDEN_APPS_UPDATED"
+     private val SHOW_HINT_COUNTER = "SHOW_HINT_COUNTER"
+     private val APP_THEME = "APP_THEME"
+@@ -265,6 +266,11 @@ class Prefs(context: Context) {
+         get() = prefs.getInt(CLOCK_FORMAT, 0)
+         set(value) = prefs.edit { putInt(CLOCK_FORMAT, value).apply() }
+ 
++    // 0 = left, 1 = center, 2 = right
++    var clockAlignment: Int
++        get() = prefs.getInt(CLOCK_ALIGNMENT, 2)
++        set(value) = prefs.edit { putInt(CLOCK_ALIGNMENT, value).apply() }
++
+     // 0 = circle, 1 = rounded square
+     var iconShape: Int
+         get() = prefs.getInt(ICON_SHAPE, 0)
+diff --git a/app/src/main/java/app/olauncher/ui/AppDrawerFragment.kt b/app/src/main/java/app/olauncher/ui/AppDrawerFragment.kt
+index 069ec71..352bbf4 100644
+--- a/app/src/main/java/app/olauncher/ui/AppDrawerFragment.kt
++++ b/app/src/main/java/app/olauncher/ui/AppDrawerFragment.kt
+@@ -10,7 +10,9 @@ import android.util.TypedValue
+ import android.widget.ImageView
+ import androidx.appcompat.app.AlertDialog
+ import androidx.core.view.updatePadding
++import android.view.Gravity
+ import android.widget.LinearLayout
++import android.widget.PopupWindow
+ import android.widget.Space
+ import androidx.core.view.doOnNextLayout
+ import app.olauncher.databinding.AdapterAppDrawerBinding
+@@ -61,6 +63,9 @@ class AppDrawerFragment : BaseFragment() {
+     private var letterPositions: Map<Char, Int> = emptyMap()
+     private var maxRecyclerHeight = 0
+     private var needsListRefresh = false
++    private var hintPopup: PopupWindow? = null
++    // Focus picker: apps that were already picked when it opened (listed first, kept out of the A-Z bar)
++    private var focusPinned: Set<String> = emptySet()
+     private var letterRuns: Map<Char, IntRange> = emptyMap()
+     private var flashToken = 0
+     private val flashedViews = mutableListOf<View>()
+@@ -301,6 +306,7 @@ class AppDrawerFragment : BaseFragment() {
+ 
+         binding.recyclerView.layoutManager = gridLayoutManager
+         adapter.focusKeys = if (flag == Constants.FLAG_FOCUS_APPS) prefs.focusApps else emptySet()
++        focusPinned = if (flag == Constants.FLAG_FOCUS_APPS) prefs.focusApps else emptySet()
+         adapter.onListChanged = { updateAlphabet() }
+         binding.alphabetIndex.onLetterSelected = { letter, centerY ->
+             showLetterBubble(letter, centerY)
+@@ -371,6 +377,15 @@ class AppDrawerFragment : BaseFragment() {
+             }
+         }
+ 
++        if (flag == Constants.FLAG_FOCUS_APPS && focusPinned.isNotEmpty()) {
++            val (picked, rest) = combined.partition {
++                it is AppModel.App && focusPinned.contains(it.appPackage + "|" + it.user.toString())
++            }
++            combined.clear()
++            combined.addAll(picked)
++            combined.addAll(rest)
++        }
++
+         adapter.setAppList(combined)
+         adapter.filter.filter(binding.search.query)
+     }
+@@ -478,7 +493,7 @@ class AppDrawerFragment : BaseFragment() {
+     private fun onFocusActionClick() {
+         when {
+             flag == Constants.FLAG_FOCUS_APPS -> findNavController().popBackStack()
+-            prefs.focusModeEnabled -> requireContext().showToast(R.string.fokus_hold_to_edit)
++            prefs.focusModeEnabled -> showEditHint()
+             else -> requestEnterFocus()
+         }
+     }
+@@ -508,11 +523,17 @@ class AppDrawerFragment : BaseFragment() {
+     }
+ 
+     private fun enterFocusMode() {
+-        setFocusMode(true)
+-        // Nothing chosen yet: let the user pick the focus apps right away
++        prefs.focusModeEnabled = true
++        updateTopActions()
++        binding.recyclerView.scrollToPosition(0)
+         if (prefs.focusApps.isEmpty()) {
++            // Nothing picked yet: go straight to the picker. It loads every app by itself,
++            // so no focus-only list is loaded at the same time.
+             requireContext().showToast(R.string.focus_pick_first)
+             openFocusPicker()
++        } else {
++            viewModel.getAppList()
++            binding.focusAction.post { showEditHint() }
+         }
+     }
+ 
+@@ -525,6 +546,7 @@ class AppDrawerFragment : BaseFragment() {
+ 
+     /** Edit the focus apps. Only reachable from inside the focus space; the picker shows every app. */
+     private fun openFocusPicker() {
++        hintPopup?.dismiss()
+         needsListRefresh = true
+         viewModel.getAppList(ignoreFocus = true)
+         findNavController().navigate(
+@@ -536,6 +558,39 @@ class AppDrawerFragment : BaseFragment() {
+         )
+     }
+ 
++    /** Small bubble above "FOCUS SPACE": how to edit the focus apps. */
++    private fun showEditHint() {
++        if (_binding == null || flag != Constants.FLAG_LAUNCH_APP || !prefs.focusModeEnabled) return
++        hintPopup?.dismiss()
++        val anchor = binding.focusAction
++        val density = resources.displayMetrics.density
++        val bubble = TextView(requireContext()).apply {
++            text = getString(R.string.fokus_hold_hint)
++            setTextColor(themeColor(R.attr.primaryInverseColor, Color.BLACK))
++            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
++            setBackgroundResource(R.drawable.bg_hint_bubble)
++            setPadding((12 * density).toInt(), (8 * density).toInt(), (12 * density).toInt(), (8 * density).toInt())
++        }
++        bubble.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
++        val popup = PopupWindow(
++            bubble,
++            ViewGroup.LayoutParams.WRAP_CONTENT,
++            ViewGroup.LayoutParams.WRAP_CONTENT
++        )
++        popup.isOutsideTouchable = true
++        popup.isFocusable = false
++        popup.elevation = 8 * density
++        popup.showAsDropDown(
++            anchor,
++            (anchor.width - bubble.measuredWidth) / 2,
++            -(anchor.height + bubble.measuredHeight + (4 * density).toInt())
++        )
++        hintPopup = popup
++        anchor.postDelayed({
++            if (hintPopup === popup) popup.dismiss()
++        }, 2500)
++    }
++
+     /** The home screen is drawn under the translucent status bar: push our content below it. */
+     private fun leaveRoomForStatusBar() {
+         val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
+@@ -582,6 +637,7 @@ class AppDrawerFragment : BaseFragment() {
+         for ((index, app) in list.withIndex()) {
+             if (app is AppModel.PrivateSpaceHeader) break
+             if (app.appPackage.isEmpty()) continue
++            if (app is AppModel.App && focusPinned.contains(app.appPackage + "|" + app.user.toString())) continue
+             val letter = indexLetter(app.appLabel)
+             if (!positions.containsKey(letter)) positions[letter] = index
+         }
+@@ -640,6 +696,11 @@ class AppDrawerFragment : BaseFragment() {
+             2 -> "h:mm a" to "h:mm a"
+             else -> "h:mm a" to "HH:mm"
+         }
++        binding.clockLayout.gravity = when (prefs.clockAlignment) {
++            0 -> Gravity.START or Gravity.BOTTOM
++            1 -> Gravity.CENTER_HORIZONTAL or Gravity.BOTTOM
++            else -> Gravity.END or Gravity.BOTTOM
++        }
+         binding.clockTime.format12Hour = format12
+         binding.clockTime.format24Hour = format24
+         binding.clockDate.format12Hour = "EEE, d MMM"
+@@ -813,6 +874,7 @@ class AppDrawerFragment : BaseFragment() {
+     override fun onDestroyView() {
+         super.onDestroyView()
+         clearFlash()
++        hintPopup?.dismiss()
+         searchTextView = null
+         _binding = null
+     }
+diff --git a/app/src/main/java/app/olauncher/ui/SettingsFragment.kt b/app/src/main/java/app/olauncher/ui/SettingsFragment.kt
+index 84b4e3e..1fdda7b 100644
+--- a/app/src/main/java/app/olauncher/ui/SettingsFragment.kt
++++ b/app/src/main/java/app/olauncher/ui/SettingsFragment.kt
+@@ -89,6 +89,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
+         populateStatusBar()
+         populateDateTime()
+         populateClockFormat()
++        populateClockAlignment()
+         populateIconShape()
+         populateRecentApps()
+         populateSwipeApps()
+@@ -118,6 +119,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
+             R.id.statusBar -> toggleStatusBar()
+             R.id.dateTime -> showDateTimeMenu(view)
+             R.id.clockFormat -> toggleClockFormat()
++            R.id.clockAlignment -> toggleClockAlignment()
+             R.id.iconShape -> toggleIconShape()
+             R.id.recentAppsToggle -> toggleRecentApps()
+             R.id.appThemeText -> showAppThemeMenu(view, showSystem = false)
+@@ -184,6 +186,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
+         binding.statusBar.setOnClickListener(this)
+         binding.dateTime.setOnClickListener(this)
+         binding.clockFormat.setOnClickListener(this)
++        binding.clockAlignment.setOnClickListener(this)
+         binding.iconShape.setOnClickListener(this)
+         binding.recentAppsToggle.setOnClickListener(this)
+         binding.swipeLeftApp.setOnClickListener(this)
+@@ -377,6 +380,21 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
+         populateRecentApps()
+     }
+ 
++    private fun populateClockAlignment() {
++        binding.clockAlignment.text = getString(
++            when (prefs.clockAlignment) {
++                0 -> R.string.fokus_align_left
++                1 -> R.string.fokus_align_center
++                else -> R.string.fokus_align_right
++            }
++        )
++    }
++
++    private fun toggleClockAlignment() {
++        prefs.clockAlignment = (prefs.clockAlignment + 1) % 3
++        populateClockAlignment()
++    }
++
+     private fun populateIconShape() {
+         binding.iconShape.text = getString(
+             if (prefs.iconShape == 1) R.string.fokus_shape_rounded else R.string.fokus_shape_circle
+diff --git a/app/src/main/res/drawable/bg_hint_bubble.xml b/app/src/main/res/drawable/bg_hint_bubble.xml
+new file mode 100644
+index 0000000..977cc93
+--- /dev/null
++++ b/app/src/main/res/drawable/bg_hint_bubble.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<shape xmlns:android="http://schemas.android.com/apk/res/android"
++    android:shape="rectangle">
++    <solid android:color="?attr/primaryColor" />
++    <corners android:radius="12dp" />
++</shape>
+diff --git a/app/src/main/res/layout-land/fragment_settings.xml b/app/src/main/res/layout-land/fragment_settings.xml
+index 3a675f9..6b90184 100644
+--- a/app/src/main/res/layout-land/fragment_settings.xml
++++ b/app/src/main/res/layout-land/fragment_settings.xml
+@@ -177,6 +177,31 @@
+                         android:padding="8dp"
+                         android:text="@string/fokus_clock_system" />
+                 </FrameLayout>
++                <FrameLayout
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:layout_marginTop="12dp">
++
++                    <TextView
++                        style="@style/TextSmall"
++                        android:layout_width="wrap_content"
++                        android:layout_height="wrap_content"
++                        android:layout_marginStart="8dp"
++                        android:paddingVertical="8dp"
++                        android:text="@string/fokus_clock_align"
++                        android:textColor="?attr/primaryColor" />
++
++                    <TextView
++                        android:id="@+id/clockAlignment"
++                        style="@style/TextSmallBold"
++                        android:layout_width="wrap_content"
++                        android:layout_height="wrap_content"
++                        android:layout_gravity="end|bottom"
++                        android:layout_marginEnd="4dp"
++                        android:padding="8dp"
++                        android:text="@string/fokus_align_right" />
++                </FrameLayout>
++
+ 
+                 <FrameLayout
+                     android:layout_width="match_parent"
+@@ -231,7 +256,7 @@
+ 
+ 
+ 
+-                <FrameLayout
++                <FrameLayout android:visibility="gone"
+                     android:layout_width="match_parent"
+                     android:layout_height="wrap_content"
+                     android:layout_marginTop="12dp">
+diff --git a/app/src/main/res/layout/fragment_app_drawer.xml b/app/src/main/res/layout/fragment_app_drawer.xml
+index aff4d39..496da94 100644
+--- a/app/src/main/res/layout/fragment_app_drawer.xml
++++ b/app/src/main/res/layout/fragment_app_drawer.xml
+@@ -17,6 +17,7 @@
+         android:layout_marginBottom="2dp"
+         android:gravity="end|bottom"
+         android:orientation="horizontal"
++        android:paddingStart="20dp"
+         android:paddingEnd="20dp"
+         android:visibility="gone">
+ 
+diff --git a/app/src/main/res/layout/fragment_settings.xml b/app/src/main/res/layout/fragment_settings.xml
+index 4cd5232..b3a5135 100644
+--- a/app/src/main/res/layout/fragment_settings.xml
++++ b/app/src/main/res/layout/fragment_settings.xml
+@@ -187,6 +187,31 @@
+                         android:padding="8dp"
+                         android:text="@string/fokus_clock_system" />
+                 </FrameLayout>
++                <FrameLayout
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:layout_marginTop="12dp">
++
++                    <TextView
++                        style="@style/TextSmall"
++                        android:layout_width="wrap_content"
++                        android:layout_height="wrap_content"
++                        android:layout_marginStart="8dp"
++                        android:paddingVertical="8dp"
++                        android:text="@string/fokus_clock_align"
++                        android:textColor="?attr/primaryColor" />
++
++                    <TextView
++                        android:id="@+id/clockAlignment"
++                        style="@style/TextSmallBold"
++                        android:layout_width="wrap_content"
++                        android:layout_height="wrap_content"
++                        android:layout_gravity="end|bottom"
++                        android:layout_marginEnd="4dp"
++                        android:padding="8dp"
++                        android:text="@string/fokus_align_right" />
++                </FrameLayout>
++
+ 
+                 <FrameLayout
+                     android:layout_width="match_parent"
+@@ -241,7 +266,7 @@
+ 
+ 
+ 
+-                <FrameLayout
++                <FrameLayout android:visibility="gone"
+                     android:layout_width="match_parent"
+                     android:layout_height="wrap_content"
+                     android:layout_marginTop="12dp">
+diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
+index b74ca6e..8bcff76 100644
+--- a/app/src/main/res/values/strings.xml
++++ b/app/src/main/res/values/strings.xml
+@@ -205,4 +205,9 @@
+     <string name="fokus_focus_intro" translatable="false">Touch Focus to enter focus mode.\nHold Focus Space to edit your focus apps.</string>
+     <string name="fokus_hold_to_edit" translatable="false">Hold Focus Space to edit your focus apps</string>
+     <string name="fokus_enter_first" translatable="false">Enter focus mode first, then hold Focus Space to edit apps</string>
++    <string name="fokus_clock_align" translatable="false">Clock alignment</string>
++    <string name="fokus_align_left" translatable="false">Left</string>
++    <string name="fokus_align_center" translatable="false">Center</string>
++    <string name="fokus_align_right" translatable="false">Right</string>
++    <string name="fokus_hold_hint" translatable="false">Hold to edit focus apps</string>
+ </resources>

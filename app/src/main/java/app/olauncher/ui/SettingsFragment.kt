@@ -4,6 +4,18 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.util.TypedValue
+import android.widget.LinearLayout
+import android.widget.SeekBar
+import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
+import app.olauncher.helper.WallpaperHelper
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
@@ -54,6 +66,11 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
 
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
+
+    private val pickWallpaperImage =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            if (uri != null) importWallpaperImage(uri)
+        }
     private val showPentastic = System.currentTimeMillis() % 2 == 0L
     private var dialog: OlDialog? = null
 
@@ -90,6 +107,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         populateDateTime()
         populateClockFormat()
         populateClockAlignment()
+        populateWallpaper()
         populateIconShape()
         populateRecentApps()
         populateSwipeApps()
@@ -120,6 +138,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             R.id.dateTime -> showDateTimeMenu(view)
             R.id.clockFormat -> toggleClockFormat()
             R.id.clockAlignment -> toggleClockAlignment()
+            R.id.wallpaperPicker -> showWallpaperDialog()
             R.id.iconShape -> toggleIconShape()
             R.id.recentAppsToggle -> toggleRecentApps()
             R.id.appThemeText -> showAppThemeMenu(view, showSystem = false)
@@ -187,6 +206,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         binding.dateTime.setOnClickListener(this)
         binding.clockFormat.setOnClickListener(this)
         binding.clockAlignment.setOnClickListener(this)
+        binding.wallpaperPicker.setOnClickListener(this)
         binding.iconShape.setOnClickListener(this)
         binding.recentAppsToggle.setOnClickListener(this)
         binding.swipeLeftApp.setOnClickListener(this)
@@ -378,6 +398,203 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
     private fun toggleRecentApps() {
         prefs.showRecentApps = !prefs.showRecentApps
         populateRecentApps()
+    }
+
+    private fun themeValue(attr: Int): Int {
+        val value = TypedValue()
+        requireContext().theme.resolveAttribute(attr, value, true)
+        return value.data
+    }
+
+    private fun populateWallpaper() {
+        binding.wallpaperPicker.text = getString(
+            when (prefs.wallpaperMode) {
+                1 -> R.string.fokus_wp_color
+                2 -> R.string.fokus_wp_image
+                else -> R.string.fokus_wp_phone
+            }
+        )
+    }
+
+    /** After any wallpaper change: refresh the row and let the theme follow the wallpaper's brightness. */
+    private fun onWallpaperChanged() {
+        populateWallpaper()
+        populateAppThemeText()
+        // prefs.appTheme follows the wallpaper; this recreates the screen if the theme flips
+        AppCompatDelegate.setDefaultNightMode(prefs.appTheme)
+    }
+
+    private fun applyWallpaperColor(color: Int) {
+        prefs.wallpaperColor = color
+        prefs.wallpaperIsLight = WallpaperHelper.isLight(color)
+        prefs.wallpaperMode = 1
+        onWallpaperChanged()
+    }
+
+    private fun usePhoneWallpaper() {
+        prefs.wallpaperMode = 0
+        onWallpaperChanged()
+    }
+
+    private fun importWallpaperImage(uri: Uri) {
+        val appContext = requireContext().applicationContext
+        val handler = Handler(Looper.getMainLooper())
+        Thread {
+            val saved = try {
+                WallpaperHelper.saveImage(appContext, uri, prefs)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
+            handler.post {
+                if (!isAdded || _binding == null) return@post
+                if (saved) onWallpaperChanged()
+                else requireContext().showToast(R.string.fokus_wp_image_failed)
+            }
+        }.start()
+    }
+
+    /** Wallpaper picker: 5 plain colors + a color picker, or the phone wallpaper / your own image. */
+    private fun showWallpaperDialog() {
+        val context = requireContext()
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+        val textColor = themeValue(R.attr.primaryColor)
+        var dialog: AlertDialog? = null
+
+        fun sectionLabel(text: String) = TextView(context).apply {
+            this.text = text
+            textSize = 13f
+            alpha = 0.7f
+            setTextColor(textColor)
+            setPadding(0, dp(14), 0, dp(8))
+        }
+
+        fun action(text: String, onClick: () -> Unit) = TextView(context).apply {
+            this.text = text
+            textSize = 16f
+            setTextColor(textColor)
+            setPadding(0, dp(12), 0, dp(12))
+            setOnClickListener { onClick() }
+        }
+
+        fun swatch(background: GradientDrawable, onClick: () -> Unit) = View(context).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(34), dp(34)).apply { marginEnd = dp(8) }
+            this.background = background
+            setOnClickListener { onClick() }
+        }
+
+        val content = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(4), dp(24), 0)
+        }
+
+        // 1. Plain color: black, red, white, yellow, blue + the color picker
+        content.addView(sectionLabel(getString(R.string.fokus_wp_color_title)))
+        val swatches = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        for (color in WallpaperHelper.PALETTE) {
+            val circle = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(color)
+                setStroke(dp(1), 0x66888888)
+            }
+            swatches.addView(swatch(circle) {
+                applyWallpaperColor(color)
+                dialog?.dismiss()
+            })
+        }
+        val rainbow = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setGradientType(GradientDrawable.SWEEP_GRADIENT)
+            setColors(
+                intArrayOf(
+                    Color.RED, Color.YELLOW, Color.GREEN, Color.CYAN,
+                    Color.BLUE, Color.MAGENTA, Color.RED
+                )
+            )
+            setStroke(dp(1), 0x66888888)
+        }
+        swatches.addView(swatch(rainbow) {
+            dialog?.dismiss()
+            showColorPicker()
+        })
+        content.addView(swatches)
+
+        // 2. Default wallpaper: follow the phone, or pick an own image
+        content.addView(sectionLabel(getString(R.string.fokus_wp_default_title)))
+        content.addView(action(getString(R.string.fokus_wp_phone)) {
+            usePhoneWallpaper()
+            dialog?.dismiss()
+        })
+        content.addView(action(getString(R.string.fokus_wp_pick_image)) {
+            dialog?.dismiss()
+            pickWallpaperImage.launch("image/*")
+        })
+
+        val created = AlertDialog.Builder(context)
+            .setTitle(R.string.fokus_wallpaper)
+            .setView(content)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        dialog = created
+        created.show()
+    }
+
+    /** Own color: three sliders with a live preview. */
+    private fun showColorPicker() {
+        val context = requireContext()
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+        val textColor = themeValue(R.attr.primaryColor)
+        val start = if (prefs.wallpaperMode == 1) prefs.wallpaperColor else 0xFF303F9F.toInt()
+        val rgb = intArrayOf(Color.red(start), Color.green(start), Color.blue(start))
+
+        val preview = View(context).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56))
+            setBackgroundColor(start)
+        }
+        val content = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(12), dp(24), 0)
+            addView(preview)
+        }
+        val names = arrayOf("R", "G", "B")
+        for (index in 0..2) {
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(8), 0, 0)
+            }
+            row.addView(TextView(context).apply {
+                text = names[index]
+                setTextColor(textColor)
+                layoutParams = LinearLayout.LayoutParams(dp(24), LinearLayout.LayoutParams.WRAP_CONTENT)
+            })
+            row.addView(SeekBar(context).apply {
+                max = 255
+                progress = rgb[index]
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                        rgb[index] = progress
+                        preview.setBackgroundColor(Color.rgb(rgb[0], rgb[1], rgb[2]))
+                    }
+
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+                })
+            })
+            content.addView(row)
+        }
+
+        AlertDialog.Builder(context)
+            .setTitle(R.string.fokus_wp_custom)
+            .setView(content)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                applyWallpaperColor(Color.rgb(rgb[0], rgb[1], rgb[2]))
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun populateClockAlignment() {

@@ -38,6 +38,10 @@ class Prefs(context: Context) {
     private val SHOW_RECENT_APPS = "SHOW_RECENT_APPS"
     private val FOCUS_INTRO_SHOWN = "FOCUS_INTRO_SHOWN"
     private val CLOCK_ALIGNMENT = "CLOCK_ALIGNMENT"
+    private val WALLPAPER_MODE = "WALLPAPER_MODE"
+    private val WALLPAPER_COLOR = "WALLPAPER_COLOR"
+    private val WALLPAPER_LIGHT = "WALLPAPER_LIGHT"
+    private val WALLPAPER_VERSION = "WALLPAPER_VERSION"
     private val HIDDEN_APPS_UPDATED = "HIDDEN_APPS_UPDATED"
     private val SHOW_HINT_COUNTER = "SHOW_HINT_COUNTER"
     private val APP_THEME = "APP_THEME"
@@ -202,9 +206,33 @@ class Prefs(context: Context) {
         get() = prefs.getBoolean(SWIPE_RIGHT_ENABLED, true)
         set(value) = prefs.edit { putBoolean(SWIPE_RIGHT_ENABLED, value).apply() }
 
+    // With a custom wallpaper (plain color / own image) the theme follows how light it is,
+    // so the app names stay readable. Otherwise it is the theme chosen in Settings.
     var appTheme: Int
-        get() = prefs.getInt(APP_THEME, AppCompatDelegate.MODE_NIGHT_YES)
+        get() = when {
+            wallpaperMode == 0 -> prefs.getInt(APP_THEME, AppCompatDelegate.MODE_NIGHT_YES)
+            wallpaperIsLight -> AppCompatDelegate.MODE_NIGHT_NO
+            else -> AppCompatDelegate.MODE_NIGHT_YES
+        }
         set(value) = prefs.edit { putInt(APP_THEME, value).apply() }
+
+    // 0 = phone wallpaper, 1 = plain color, 2 = own image (only changes the FokusHome background)
+    var wallpaperMode: Int
+        get() = prefs.getInt(WALLPAPER_MODE, 0)
+        set(value) = prefs.edit { putInt(WALLPAPER_MODE, value).apply() }
+
+    var wallpaperColor: Int
+        get() = prefs.getInt(WALLPAPER_COLOR, 0xFF000000.toInt())
+        set(value) = prefs.edit { putInt(WALLPAPER_COLOR, value).apply() }
+
+    var wallpaperIsLight: Boolean
+        get() = prefs.getBoolean(WALLPAPER_LIGHT, false)
+        set(value) = prefs.edit { putBoolean(WALLPAPER_LIGHT, value).apply() }
+
+    // Changes every time a new image is picked (used to refresh the cached image)
+    var wallpaperVersion: Long
+        get() = prefs.getLong(WALLPAPER_VERSION, 0L)
+        set(value) = prefs.edit { putLong(WALLPAPER_VERSION, value).apply() }
 
     var textSizeScale: Float
         get() = prefs.getFloat(TEXT_SIZE_SCALE, 1.0f)
