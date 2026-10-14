@@ -42,6 +42,7 @@ class Prefs(context: Context) {
     private val WALLPAPER_COLOR = "WALLPAPER_COLOR"
     private val WALLPAPER_LIGHT = "WALLPAPER_LIGHT"
     private val WALLPAPER_VERSION = "WALLPAPER_VERSION"
+    private val CUSTOM_COLORS = "CUSTOM_COLORS"
     private val HIDDEN_APPS_UPDATED = "HIDDEN_APPS_UPDATED"
     private val SHOW_HINT_COUNTER = "SHOW_HINT_COUNTER"
     private val APP_THEME = "APP_THEME"
@@ -228,6 +229,18 @@ class Prefs(context: Context) {
     var wallpaperIsLight: Boolean
         get() = prefs.getBoolean(WALLPAPER_LIGHT, false)
         set(value) = prefs.edit { putBoolean(WALLPAPER_LIGHT, value).apply() }
+
+    // Colors picked with the color picker, newest first (shown in the free swatch slots)
+    var customColors: List<Int>
+        get() = (prefs.getString(CUSTOM_COLORS, "") ?: "").split(",").mapNotNull { it.toIntOrNull() }
+        set(value) = prefs.edit { putString(CUSTOM_COLORS, value.joinToString(",")).apply() }
+
+    fun addCustomColor(color: Int) {
+        val list = customColors.toMutableList()
+        list.remove(color)
+        list.add(0, color)
+        customColors = list.take(10)
+    }
 
     // Changes every time a new image is picked (used to refresh the cached image)
     var wallpaperVersion: Long

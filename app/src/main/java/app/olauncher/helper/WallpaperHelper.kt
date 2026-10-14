@@ -1,5 +1,6 @@
 package app.olauncher.helper
 
+import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -22,14 +23,27 @@ import kotlin.math.max
  * It only changes the launcher, never the phone's wallpaper or lock screen.
  */
 object WallpaperHelper {
-    /** black, red, white, yellow, blue */
+    /** Colors shown in the "Color" sheet (white first, like the tile next to the color picker). */
     val PALETTE = intArrayOf(
-        0xFF000000.toInt(),
-        0xFFD32F2F.toInt(),
-        0xFFFFFFFF.toInt(),
-        0xFFFFD600.toInt(),
-        0xFF2962FF.toInt(),
+        0xFFFFFFFF.toInt(), 0xFFF1EFEB.toInt(), 0xFF99EEFF.toInt(), 0xFF00CCFF.toInt(),
+        0xFFD3E82E.toInt(), 0xFF92D92F.toInt(), 0xFF8F9663.toInt(), 0xFF0EA68D.toInt(),
+        0xFF2F4F4A.toInt(), 0xFFFFEE00.toInt(), 0xFF838C70.toInt(), 0xFFF9B228.toInt(),
+        0xFFFF6150.toInt(), 0xFFC772E8.toInt(), 0xFF9910FF.toInt(), 0xFFEEE3DE.toInt(),
+        0xFF5B2A86.toInt(), 0xFF3E2723.toInt(), 0xFF1A237E.toInt(), 0xFFB71C1C.toInt(),
+        0xFFF06292.toInt(), 0xFF4DB6AC.toInt(), 0xFF212121.toInt(), 0xFF000000.toInt(),
     )
+
+    /** Small swatches inside the color picker. */
+    val PRESETS = intArrayOf(
+        0xFF000000.toInt(), 0xFFFFFFFF.toInt(), 0xFF6A4C9C.toInt(), 0xFF4B5FAB.toInt(),
+        0xFF3B93C6.toInt(), 0xFF17DCD1.toInt(), 0xFF1DB345.toInt(), 0xFFADC94B.toInt(),
+        0xFFFFC70F.toInt(), 0xFFFF9A0D.toInt(), 0xFFFF6F43.toInt(), 0xFFF63B63.toInt(),
+        0xFFEF2E45.toInt(), 0xFFC91F33.toInt(),
+    )
+
+    const val RESULT_FAILED = 0
+    const val RESULT_OK = 1
+    const val RESULT_OK_PHONE_NOT_CHANGED = 2
 
     private const val FILE_NAME = "wallpaper.jpg"
     private var cachedImage: Bitmap? = null
@@ -56,11 +70,35 @@ object WallpaperHelper {
         return bitmap
     }
 
+    /** Sets the phone's home screen and lock screen wallpaper. Heavy: call off the main thread. */
+    fun setSystemBitmap(context: Context, bitmap: Bitmap): Boolean {
+        return try {
+            val manager = WallpaperManager.getInstance(context)
+            manager.setBitmap(bitmap, null, false, WallpaperManager.FLAG_SYSTEM)
+            manager.setBitmap(bitmap, null, false, WallpaperManager.FLAG_LOCK)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    /** Plain color as the phone's home screen and lock screen wallpaper. */
+    fun setSystemColor(context: Context, color: Int): Boolean {
+        val manager = WallpaperManager.getInstance(context)
+        val metrics = context.resources.displayMetrics
+        val width = manager.desiredMinimumWidth.takeIf { it > 0 } ?: metrics.widthPixels
+        val height = manager.desiredMinimumHeight.takeIf { it > 0 } ?: metrics.heightPixels
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(color)
+        return setSystemBitmap(context, bitmap)
+    }
+
     /**
-     * Copies a picked image into the app (cropped to the screen shape) and switches to it.
-     * Heavy: call it off the main thread. Returns false when the image could not be used.
+     * Copies a picked image into the app (cropped to the screen shape), switches to it and also sets
+     * it as the phone wallpaper. Heavy: call it off the main thread. Returns one of the RESULT_ values.
      */
-    fun saveImage(context: Context, uri: Uri, prefs: Prefs): Boolean {
+    fun saveImage(context: Context, uri: Uri, prefs: Prefs): Int {
         val resolver = context.contentResolver
         val metrics = context.resources.displayMetrics
         val targetW = metrics.widthPixels
@@ -68,7 +106,7 @@ object WallpaperHelper {
 
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return false
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return RESULT_FAILED
 
         // Load a version that is not much bigger than the screen
         var sample = 1
@@ -77,7 +115,7 @@ object WallpaperHelper {
         }
         val options = BitmapFactory.Options().apply { inSampleSize = sample }
         val decoded = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
-            ?: return false
+            ?: return RESULT_FAILED
 
         // Photos can be stored rotated
         val orientation = try {
@@ -125,6 +163,6 @@ object WallpaperHelper {
         prefs.wallpaperIsLight = light
         prefs.wallpaperVersion = version
         prefs.wallpaperMode = 2
-        return true
+        return if (setSystemBitmap(context, result)) RESULT_OK else RESULT_OK_PHONE_NOT_CHANGED
     }
 }

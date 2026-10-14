@@ -5,16 +5,21 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.TypedValue
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.core.widget.NestedScrollView
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import app.olauncher.helper.WallpaperHelper
 import android.os.Build
 import android.os.Bundle
@@ -429,172 +434,257 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         prefs.wallpaperIsLight = WallpaperHelper.isLight(color)
         prefs.wallpaperMode = 1
         onWallpaperChanged()
+        // Also the phone's own home screen and lock screen
+        val appContext = requireContext().applicationContext
+        runInBackground(appContext) { WallpaperHelper.setSystemColor(appContext, color) }
     }
 
+    /** "Default wallpaper": FokusHome stops changing the phone wallpaper. The current one stays as it is. */
     private fun usePhoneWallpaper() {
         prefs.wallpaperMode = 0
         onWallpaperChanged()
+        requireContext().showToast(R.string.fokus_wp_keep_note)
+    }
+
+    /** Runs slow wallpaper work off the main thread and warns if the phone refused it. */
+    private fun runInBackground(appContext: Context, work: () -> Boolean) {
+        val handler = Handler(Looper.getMainLooper())
+        Thread {
+            val ok = try {
+                work()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
+            if (!ok) handler.post { appContext.showToast(R.string.fokus_wp_system_failed) }
+        }.start()
     }
 
     private fun importWallpaperImage(uri: Uri) {
         val appContext = requireContext().applicationContext
         val handler = Handler(Looper.getMainLooper())
         Thread {
-            val saved = try {
+            val result = try {
                 WallpaperHelper.saveImage(appContext, uri, prefs)
             } catch (e: Exception) {
                 e.printStackTrace()
-                false
+                WallpaperHelper.RESULT_FAILED
             }
             handler.post {
-                if (!isAdded || _binding == null) return@post
-                if (saved) onWallpaperChanged()
-                else requireContext().showToast(R.string.fokus_wp_image_failed)
+                when (result) {
+                    WallpaperHelper.RESULT_FAILED -> appContext.showToast(R.string.fokus_wp_image_failed)
+                    WallpaperHelper.RESULT_OK_PHONE_NOT_CHANGED ->
+                        appContext.showToast(R.string.fokus_wp_system_failed)
+                }
+                if (result != WallpaperHelper.RESULT_FAILED && isAdded && _binding != null) onWallpaperChanged()
             }
         }.start()
     }
 
-    /** Wallpaper picker: 5 plain colors + a color picker, or the phone wallpaper / your own image. */
+    /** Wallpaper picker: plain color, your own image, or leave the phone wallpaper alone. */
     private fun showWallpaperDialog() {
+        val items = arrayOf(
+            getString(R.string.fokus_wp_color_title),
+            getString(R.string.fokus_wp_pick_image),
+            getString(R.string.fokus_wp_keep_phone),
+        )
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.fokus_wallpaper)
+            .setItems(items) { _, which ->
+                when (which) {
+                    0 -> showColorSheet()
+                    1 -> pickWallpaperImage.launch("image/*")
+                    else -> usePhoneWallpaper()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** "Color" sheet: Color Picker tile, "no color" tile, then a grid of colors. */
+    private fun showColorSheet() {
         val context = requireContext()
         val density = resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()
         val textColor = themeValue(R.attr.primaryColor)
-        var dialog: AlertDialog? = null
+        val side = dp(20)
+        val gap = dp(10)
+        val tile = (resources.displayMetrics.widthPixels - 2 * side - 2 * gap) / 3
+        val sheet = BottomSheetDialog(context)
 
-        fun sectionLabel(text: String) = TextView(context).apply {
-            this.text = text
-            textSize = 13f
-            alpha = 0.7f
-            setTextColor(textColor)
-            setPadding(0, dp(14), 0, dp(8))
-        }
+        val tiles = mutableListOf<View>()
 
-        fun action(text: String, onClick: () -> Unit) = TextView(context).apply {
-            this.text = text
-            textSize = 16f
-            setTextColor(textColor)
-            setPadding(0, dp(12), 0, dp(12))
-            setOnClickListener { onClick() }
-        }
-
-        fun swatch(background: GradientDrawable, onClick: () -> Unit) = View(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(34), dp(34)).apply { marginEnd = dp(8) }
-            this.background = background
-            setOnClickListener { onClick() }
-        }
-
-        val content = LinearLayout(context).apply {
+        // 1. Color Picker
+        tiles.add(LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(4), dp(24), 0)
-        }
-
-        // 1. Plain color: black, red, white, yellow, blue + the color picker
-        content.addView(sectionLabel(getString(R.string.fokus_wp_color_title)))
-        val swatches = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
-        for (color in WallpaperHelper.PALETTE) {
-            val circle = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(color)
-                setStroke(dp(1), 0x66888888)
+            gravity = Gravity.BOTTOM
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(12).toFloat()
+                setColor(0x22888888)
             }
-            swatches.addView(swatch(circle) {
-                applyWallpaperColor(color)
-                dialog?.dismiss()
+            addView(ImageView(context).apply {
+                setImageResource(R.drawable.ic_colorize)
+                setColorFilter(textColor)
+                layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply { bottomMargin = dp(10) }
+            })
+            addView(TextView(context).apply {
+                text = getString(R.string.fokus_wp_color_picker)
+                textSize = 15f
+                setTextColor(textColor)
+            })
+            setOnClickListener {
+                sheet.dismiss()
+                showColorPicker()
+            }
+        })
+
+        // 2. Checkerboard = no color: keep the phone wallpaper
+        tiles.add(View(context).apply {
+            background = CheckerDrawable(dp(10).toFloat(), dp(12).toFloat())
+            setOnClickListener {
+                sheet.dismiss()
+                usePhoneWallpaper()
+            }
+        })
+
+        // 3.. Colors
+        for (color in WallpaperHelper.PALETTE) {
+            tiles.add(View(context).apply {
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(12).toFloat()
+                    setColor(color)
+                    setStroke(dp(1), 0x33888888)
+                }
+                setOnClickListener {
+                    sheet.dismiss()
+                    applyWallpaperColor(color)
+                }
             })
         }
-        val rainbow = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setGradientType(GradientDrawable.SWEEP_GRADIENT)
-            setColors(
-                intArrayOf(
-                    Color.RED, Color.YELLOW, Color.GREEN, Color.CYAN,
-                    Color.BLUE, Color.MAGENTA, Color.RED
-                )
-            )
-            setStroke(dp(1), 0x66888888)
+
+        val root = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(side, dp(28), side, dp(24))
+            addView(TextView(context).apply {
+                text = getString(R.string.fokus_wp_sheet_title)
+                textSize = 26f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(textColor)
+                setPadding(0, 0, 0, dp(16))
+            })
         }
-        swatches.addView(swatch(rainbow) {
-            dialog?.dismiss()
-            showColorPicker()
-        })
-        content.addView(swatches)
-
-        // 2. Default wallpaper: follow the phone, or pick an own image
-        content.addView(sectionLabel(getString(R.string.fokus_wp_default_title)))
-        content.addView(action(getString(R.string.fokus_wp_phone)) {
-            usePhoneWallpaper()
-            dialog?.dismiss()
-        })
-        content.addView(action(getString(R.string.fokus_wp_pick_image)) {
-            dialog?.dismiss()
-            pickWallpaperImage.launch("image/*")
-        })
-
-        val created = AlertDialog.Builder(context)
-            .setTitle(R.string.fokus_wallpaper)
-            .setView(content)
-            .setNegativeButton(android.R.string.cancel, null)
-            .create()
-        dialog = created
-        created.show()
+        for (rowTiles in tiles.chunked(3)) {
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { bottomMargin = gap }
+            }
+            rowTiles.forEachIndexed { index, view ->
+                view.layoutParams = LinearLayout.LayoutParams(tile, tile).apply {
+                    marginEnd = if (index < 2) gap else 0
+                }
+                row.addView(view)
+            }
+            root.addView(row)
+        }
+        sheet.setContentView(NestedScrollView(context).apply { addView(root) })
+        sheet.behavior.state = BottomSheetBehavior.STATE_EXPANDED
+        sheet.behavior.skipCollapsed = true
+        sheet.show()
     }
 
-    /** Own color: three sliders with a live preview. */
+    /** Own color: hue ring + diamond, preview bar, tick / cross and a grid of small swatches. */
     private fun showColorPicker() {
         val context = requireContext()
         val density = resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()
         val textColor = themeValue(R.attr.primaryColor)
-        val start = if (prefs.wallpaperMode == 1) prefs.wallpaperColor else 0xFF303F9F.toInt()
-        val rgb = intArrayOf(Color.red(start), Color.green(start), Color.blue(start))
+        var current = if (prefs.wallpaperMode == 1) prefs.wallpaperColor else 0xFF1B8A8A.toInt()
 
         val preview = View(context).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56))
-            setBackgroundColor(start)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44))
+            setBackgroundColor(current)
         }
+        val wheel = ColorWheelView(context).apply {
+            color = current
+            layoutParams = LinearLayout.LayoutParams(dp(260), dp(260)).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                topMargin = dp(16)
+                bottomMargin = dp(12)
+            }
+            onColorChanged = {
+                current = it
+                preview.setBackgroundColor(it)
+            }
+        }
+
         val content = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(12), dp(24), 0)
-            addView(preview)
+            setPadding(dp(20), dp(12), dp(20), dp(16))
         }
-        val names = arrayOf("R", "G", "B")
-        for (index in 0..2) {
+        val dialog = AlertDialog.Builder(context).setView(content).create()
+
+        fun headerButton(symbol: String, onClick: () -> Unit) = TextView(context).apply {
+            text = symbol
+            textSize = 26f
+            setTextColor(textColor)
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+            setOnClickListener { onClick() }
+        }
+        val header = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        header.addView(headerButton("✕") { dialog.dismiss() })
+        header.addView(View(context).apply {
+            layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
+        })
+        header.addView(headerButton("✓") {
+            prefs.addCustomColor(current)
+            dialog.dismiss()
+            applyWallpaperColor(current)
+        })
+        content.addView(header)
+        content.addView(preview)
+        content.addView(wheel)
+
+        // 6 x 4 swatches: ready colors first, then the colors you picked before, then empty slots
+        val slots = WallpaperHelper.PRESETS.toList() + prefs.customColors
+        var index = 0
+        for (rowIndex in 0 until 4) {
             val row = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, dp(8), 0, 0)
+                gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(0, dp(4), 0, dp(4))
             }
-            row.addView(TextView(context).apply {
-                text = names[index]
-                setTextColor(textColor)
-                layoutParams = LinearLayout.LayoutParams(dp(24), LinearLayout.LayoutParams.WRAP_CONTENT)
-            })
-            row.addView(SeekBar(context).apply {
-                max = 255
-                progress = rgb[index]
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                    override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                        rgb[index] = progress
-                        preview.setBackgroundColor(Color.rgb(rgb[0], rgb[1], rgb[2]))
+            for (column in 0 until 6) {
+                val color = slots.getOrNull(index)
+                index++
+                row.addView(View(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(dp(34), dp(34)).apply {
+                        marginStart = dp(4)
+                        marginEnd = dp(4)
                     }
-
-                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                    override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+                    background = GradientDrawable().apply {
+                        cornerRadius = dp(8).toFloat()
+                        if (color != null) setColor(color)
+                        setStroke(dp(2), 0xAA888888.toInt())
+                    }
+                    if (color != null) {
+                        setOnClickListener {
+                            current = color
+                            wheel.color = color
+                            preview.setBackgroundColor(color)
+                        }
+                    }
                 })
-            })
+            }
             content.addView(row)
         }
-
-        AlertDialog.Builder(context)
-            .setTitle(R.string.fokus_wp_custom)
-            .setView(content)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                applyWallpaperColor(Color.rgb(rgb[0], rgb[1], rgb[2]))
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        dialog.show()
     }
 
     private fun populateClockAlignment() {

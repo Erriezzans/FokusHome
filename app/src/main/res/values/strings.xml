@@ -219,4 +219,9 @@
     <string name="fokus_wp_pick_image" translatable="false">Pick my own image</string>
     <string name="fokus_wp_custom" translatable="false">Choose a color</string>
     <string name="fokus_wp_image_failed" translatable="false">Could not use that image</string>
+    <string name="fokus_wp_system_failed" translatable="false">Could not change the phone wallpaper. Your phone may block it.</string>
+    <string name="fokus_wp_sheet_title" translatable="false">Color</string>
+    <string name="fokus_wp_color_picker" translatable="false">Color Picker</string>
+    <string name="fokus_wp_keep_phone" translatable="false">Keep phone wallpaper</string>
+    <string name="fokus_wp_keep_note" translatable="false">Your phone wallpaper stays as it is now</string>
 </resources>
