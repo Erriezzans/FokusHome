@@ -144,6 +144,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             R.id.clockFormat -> toggleClockFormat()
             R.id.clockAlignment -> toggleClockAlignment()
             R.id.wallpaperPicker -> showWallpaperDialog()
+            R.id.donate -> openDonate()
             R.id.iconShape -> toggleIconShape()
             R.id.recentAppsToggle -> toggleRecentApps()
             R.id.appThemeText -> showAppThemeMenu(view, showSystem = false)
@@ -212,6 +213,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         binding.clockFormat.setOnClickListener(this)
         binding.clockAlignment.setOnClickListener(this)
         binding.wallpaperPicker.setOnClickListener(this)
+        binding.donate.setOnClickListener(this)
         binding.iconShape.setOnClickListener(this)
         binding.recentAppsToggle.setOnClickListener(this)
         binding.swipeLeftApp.setOnClickListener(this)
@@ -409,6 +411,14 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         val value = TypedValue()
         requireContext().theme.resolveAttribute(attr, value, true)
         return value.data
+    }
+
+    private fun openDonate() {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Constants.URL_DONATE)))
+        } catch (e: Exception) {
+            requireContext().showToast(R.string.fokus_donate_failed)
+        }
     }
 
     private fun populateWallpaper() {

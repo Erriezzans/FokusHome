@@ -688,6 +688,38 @@
 
             </LinearLayout>
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/TextSmall"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:alpha="0.8"
+                        android:gravity="center"
+                        android:paddingHorizontal="12dp"
+                        android:text="@string/fokus_donate_message"
+                        android:textColor="?attr/primaryColor" />
+
+                    <TextView
+                        android:id="@+id/donate"
+                        style="@style/TextSmallBold"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="16dp"
+                        android:background="@drawable/bg_donate_button"
+                        android:gravity="center"
+                        android:paddingHorizontal="28dp"
+                        android:paddingVertical="12dp"
+                        android:text="@string/fokus_donate_button"
+                        android:textAllCaps="true" />
+                </LinearLayout>
+
             <TextView android:visibility="gone"
                 android:id="@+id/footer"
                 style="@style/TextSmallBold"

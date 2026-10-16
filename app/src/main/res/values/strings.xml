@@ -224,4 +224,7 @@
     <string name="fokus_wp_color_picker" translatable="false">Color Picker</string>
     <string name="fokus_wp_keep_phone" translatable="false">Keep phone wallpaper</string>
     <string name="fokus_wp_keep_note" translatable="false">Your phone wallpaper stays as it is now</string>
+    <string name="fokus_donate_message" translatable="false">FokusHome is free and made with care. If it makes your phone a calmer place, a small donation helps me keep improving it. Thank you for your support ♥</string>
+    <string name="fokus_donate_button" translatable="false">Donate via PayPal</string>
+    <string name="fokus_donate_failed" translatable="false">Could not open PayPal</string>
 </resources>
