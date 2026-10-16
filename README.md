@@ -11,3 +11,5 @@ grid of app icons (5 columns, about 6 rows per screen), no widgets, no pages to 
 
 FokusHome is a fork of [Olauncher](https://github.com/tanujnotes/Olauncher) by tanujnotes and is
 licensed under the GNU GPLv3 (see `LICENSE`). Original copyright notices are kept.
+
+Modified by Erriezzans, October 2026.
