@@ -3,6 +3,7 @@ package app.olauncher.helper
 import android.content.Context
 import android.content.pm.LauncherApps
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -18,6 +19,9 @@ import android.os.Looper
 import android.util.LruCache
 import android.widget.ImageView
 import app.olauncher.data.AppModel
+import java.io.File
+import java.io.FileOutputStream
+import java.security.MessageDigest
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
@@ -68,6 +72,7 @@ object AppIconLoader {
         val currentShape = shape
         val snapshot = apps.filter { it.appPackage.isNotEmpty() }
         preloadExecutor.execute {
+            trimDiskCache(appContext)
             for (app in snapshot) {
                 val key = keyOf(app, currentShape)
                 if (cache.get(key) != null) continue
@@ -78,6 +83,13 @@ object AppIconLoader {
 
     fun clear() = cache.evictAll()
 
+    /** Removes saved icons when there are far more files than apps (old versions of updated apps). */
+    private fun trimDiskCache(context: Context) {
+        val dir = File(context.cacheDir, "icons")
+        val files = dir.listFiles() ?: return
+        if (files.size > 1500) files.forEach { it.delete() }
+    }
+
     private fun keyOf(app: AppModel, shape: Int): String {
         val activity = (app as? AppModel.App)?.activityClassName.orEmpty()
         return app.appPackage + "|" + activity + "|" + app.user.toString() + "|" + shape
@@ -85,14 +97,44 @@ object AppIconLoader {
 
     private fun createAndCache(context: Context, app: AppModel, shape: Int, key: String): Bitmap? {
         return try {
+            // 1. Finished icon saved on the phone earlier: no drawing needed
+            val file = iconFile(context, app, shape)
+            if (file.exists()) {
+                val saved = BitmapFactory.decodeFile(file.path)
+                if (saved != null) {
+                    cache.put(key, saved)
+                    return saved
+                }
+            }
+            // 2. Draw it once, then keep it for next time
             val drawable = loadDrawable(context, app) ?: return null
             val sizePx = (48 * context.resources.displayMetrics.density).roundToInt().coerceAtLeast(96)
             val bitmap = render(drawable, sizePx, shape)
             cache.put(key, bitmap)
+            try {
+                FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            } catch (e: Exception) {
+                file.delete()
+            }
             bitmap
         } catch (e: Exception) {
             null
         }
+    }
+
+    /** The file name changes when the app is updated (new apk path), so an updated icon is never stale. */
+    private fun iconFile(context: Context, app: AppModel, shape: Int): File {
+        val dir = File(context.cacheDir, "icons")
+        if (!dir.exists()) dir.mkdirs()
+        val source = try {
+            context.packageManager.getApplicationInfo(app.appPackage, 0).sourceDir
+        } catch (e: Exception) {
+            ""
+        }
+        val raw = keyOf(app, shape) + "|" + source
+        val hash = MessageDigest.getInstance("SHA-1").digest(raw.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+        return File(dir, "$hash.png")
     }
 
     private fun loadDrawable(context: Context, app: AppModel): Drawable? {

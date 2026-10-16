@@ -64,6 +64,7 @@ class AppDrawerFragment : BaseFragment() {
     private var letterPositions: Map<Char, Int> = emptyMap()
     private var maxRecyclerHeight = 0
     private var needsListRefresh = false
+    private var shownRecentKeys: List<String>? = null
     private var hintPopup: PopupWindow? = null
     // Focus picker: apps that were already picked when it opened (listed first, kept out of the A-Z bar)
     private var focusPinned: Set<String> = emptySet()
@@ -741,6 +742,11 @@ class AppDrawerFragment : BaseFragment() {
             emptyList()
         }
 
+        // Same recent apps as before: keep the row as it is (no rebuild on every resume)
+        val recentKeys = recents.map { it.appPackage + "|" + it.user.toString() }
+        if (recentKeys == shownRecentKeys) return
+        shownRecentKeys = recentKeys
+
         row.removeAllViews()
         val show = recents.isNotEmpty()
         row.visibility = if (show) View.VISIBLE else View.GONE
@@ -873,6 +879,7 @@ class AppDrawerFragment : BaseFragment() {
         if (AppIconLoader.shape != prefs.iconShape) {
             // Icon shape was changed in Settings
             AppIconLoader.shape = prefs.iconShape
+            shownRecentKeys = null
             adapter.notifyDataSetChanged()
             currentAppList?.let { AppIconLoader.preload(requireContext(), it) }
         }

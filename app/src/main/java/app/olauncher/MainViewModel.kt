@@ -23,6 +23,7 @@ import app.olauncher.data.Prefs
 import app.olauncher.helper.SingleLiveEvent
 import app.olauncher.helper.WallpaperWorker
 import app.olauncher.helper.formattedTimeSpent
+import app.olauncher.helper.AppListCache
 import app.olauncher.helper.getAppsList
 import app.olauncher.helper.getPrivateSpaceApps
 import app.olauncher.helper.getPrivateSpaceUserHandle
@@ -49,6 +50,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val toggleDateTime = MutableLiveData<Unit>()
     val updateSwipeApps = MutableLiveData<Any>()
     val appList = MutableLiveData<List<AppModel>?>()
+
+    init {
+        // Show the last known list right away; the real list is loaded again quietly
+        AppListCache.load(appContext, AppListCache.signature(prefs))?.let { appList.value = it }
+    }
     val hiddenApps = MutableLiveData<List<AppModel>?>()
     val isOlauncherDefault = MutableLiveData<Boolean>()
     val launcherResetFailed = MutableLiveData<Boolean>()
@@ -411,7 +417,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 includeHiddenApps = includeHiddenApps,
                 ignoreFocus = ignoreFocus
             )
-            appList.value = apps
+            // Only touch the screen when something really changed (no flash on every resume)
+            if (appList.value != apps) appList.value = apps
+            if (!ignoreFocus && !includeHiddenApps) {
+                withContext(Dispatchers.IO) {
+                    AppListCache.save(appContext, apps, AppListCache.signature(prefs))
+                }
+            }
         }
         getPrivateSpaceAppList()
     }
