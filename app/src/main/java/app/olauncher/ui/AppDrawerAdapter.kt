@@ -5,6 +5,7 @@ import android.content.pm.LauncherApps
 import android.os.UserHandle
 import android.text.InputType
 import android.view.LayoutInflater
+import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
@@ -20,6 +21,7 @@ import app.olauncher.data.Constants
 import app.olauncher.databinding.AdapterAppDrawerBinding
 import app.olauncher.databinding.AdapterPrivateSpaceHeaderBinding
 import app.olauncher.helper.AppIconLoader
+import app.olauncher.helper.FokusAnim
 import java.text.Normalizer
 
 class AppDrawerAdapter(
@@ -68,6 +70,11 @@ class AppDrawerAdapter(
 
     // Height of one grid cell in px (0 = wrap content until the screen has been measured)
     var cellHeight = 0
+
+    // Icon / label size for the current grid (0 = layout default) and the touch feedback mode
+    var iconSizePx = 0
+    var labelSizeSp = 0f
+    var touchAnim = 0
 
     var appsList: MutableList<AppModel> = mutableListOf()
     var appFilteredList: MutableList<AppModel> = mutableListOf()
@@ -124,7 +131,10 @@ class AppDrawerAdapter(
                     appInfoListener,
                     appHideListener,
                     appRenameListener,
-                    cellHeight
+                    cellHeight,
+                    iconSizePx,
+                    labelSizeSp,
+                    touchAnim,
                 )
             }
         } catch (e: Exception) {
@@ -225,6 +235,9 @@ class AppDrawerAdapter(
             appHideListener: (AppModel, Int) -> Unit,
             appRenameListener: (AppModel, String) -> Unit,
             cellHeight: Int,
+            iconSizePx: Int,
+            labelSizeSp: Float,
+            touchAnim: Int,
         ) = with(binding) {
             // The blank item at the end of the list is only bottom padding
             val isSpacer = appModel.appPackage.isEmpty()
@@ -253,6 +266,14 @@ class AppDrawerAdapter(
             root.foreground = null
 
             appIcon.visibility = View.VISIBLE
+            if (iconSizePx > 0 && appIcon.layoutParams.width != iconSizePx) {
+                val iconParams = appIcon.layoutParams
+                iconParams.width = iconSizePx
+                iconParams.height = iconSizePx
+                appIcon.layoutParams = iconParams
+            }
+            if (labelSizeSp > 0f) appTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, labelSizeSp)
+            FokusAnim.applyTouch(root, touchAnim)
             AppIconLoader.load(appIcon, appModel)
 
             appTitle.text = buildString {

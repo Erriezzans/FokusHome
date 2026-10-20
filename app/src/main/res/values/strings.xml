@@ -227,4 +227,23 @@
     <string name="fokus_donate_message" translatable="false">FokusHome is free and made with care. If it makes your phone a calmer place, a small donation helps me keep improving it. Thank you for your support ♥</string>
     <string name="fokus_donate_button" translatable="false">Donate via PayPal</string>
     <string name="fokus_donate_failed" translatable="false">Could not open PayPal</string>
+
+    <!-- FokusHome: app drawer grid and animations -->
+    <string name="fokus_grid_size" translatable="false">App drawer grid</string>
+    <string name="fokus_grid_custom" translatable="false">Custom</string>
+    <string name="fokus_grid_custom_title" translatable="false">Custom grid</string>
+    <string name="fokus_grid_columns" translatable="false">Columns (%1$d–%2$d)</string>
+    <string name="fokus_grid_rows" translatable="false">Rows (%1$d–%2$d)</string>
+    <string name="fokus_grid_invalid" translatable="false">Enter numbers inside the allowed range</string>
+    <string name="fokus_animations" translatable="false">Animations</string>
+    <string name="fokus_anim_transition" translatable="false">Screen transition</string>
+    <string name="fokus_anim_touch" translatable="false">Touch animation</string>
+    <string name="fokus_anim_focus" translatable="false">Focus space animation</string>
+    <string name="fokus_anim_default" translatable="false">Default</string>
+    <string name="fokus_anim_off" translatable="false">Off</string>
+    <string name="fokus_anim_fade" translatable="false">Fade</string>
+    <string name="fokus_anim_slide" translatable="false">Slide</string>
+    <string name="fokus_anim_zoom" translatable="false">Zoom</string>
+    <string name="fokus_anim_press" translatable="false">Press</string>
+    <string name="fokus_anim_bounce" translatable="false">Bounce</string>
 </resources>

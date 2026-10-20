@@ -57,6 +57,10 @@ import app.olauncher.helper.rateApp
 import app.olauncher.helper.setPlainWallpaper
 import app.olauncher.helper.shareApp
 import app.olauncher.helper.OlDialog
+import app.olauncher.helper.FokusAnim
+import app.olauncher.helper.navigateAnimated
+import android.text.InputType
+import android.widget.EditText
 import app.olauncher.helper.showPopupMenu
 import app.olauncher.helper.showStatusBar
 import app.olauncher.helper.showToast
@@ -66,8 +70,6 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
 
     private lateinit var prefs: Prefs
     private lateinit var viewModel: MainViewModel
-    private lateinit var deviceManager: DevicePolicyManager
-    private lateinit var componentName: ComponentName
 
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
@@ -92,15 +94,8 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         } ?: throw Exception("Invalid Activity")
         viewModel.isOlauncherDefault()
 
-        deviceManager = requireContext().getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-        componentName = ComponentName(requireContext(), DeviceAdmin::class.java)
-        checkAdminPermission()
-
-        binding.homeAppsNum.text = prefs.homeAppsNum.toString()
-        populateProMessage()
         populateKeyboardText()
         populateScreenTimeOnOff()
-        populateLockSettings()
         // Home button for recents feature disabled
         // populateHomeButtonRecents()
         populateWallpaperText()
@@ -114,8 +109,9 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         populateClockAlignment()
         populateWallpaper()
         populateIconShape()
+        populateDrawerGrid()
+        populateAnimations()
         populateRecentApps()
-        populateSwipeApps()
         populateActionHints()
         initClickListeners()
         initObservers()
@@ -127,15 +123,16 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
     override fun onClick(view: View) {
         when (view.id) {
             R.id.olauncherHiddenApps -> showHiddenApps()
-            R.id.moreFeatures -> viewModel.showDialog.postValue(Constants.Dialog.PRO_MESSAGE)
             R.id.screenTimeOnOff -> viewModel.showDialog.postValue(Constants.Dialog.DIGITAL_WELLBEING)
             R.id.appInfo -> openAppInfo(requireContext(), Process.myUserHandle(), BuildConfig.APPLICATION_ID)
             R.id.setLauncher -> viewModel.resetLauncherLiveData.call()
-            R.id.toggleLock -> toggleLockMode()
             // Home button for recents feature disabled
             // R.id.homeButtonRecents -> toggleHomeButtonRecents()
             R.id.autoShowKeyboard -> toggleKeyboardText()
-            R.id.homeAppsNum -> showHomeAppsNumMenu(view)
+            R.id.drawerGrid -> showGridMenu(view)
+            R.id.transitionAnim -> showAnimMenu(view, AnimKind.TRANSITION)
+            R.id.touchAnim -> showAnimMenu(view, AnimKind.TOUCH)
+            R.id.focusAnim -> showAnimMenu(view, AnimKind.FOCUS)
             R.id.dailyWallpaperUrl -> requireContext().openUrl(prefs.dailyWallpaperUrl)
             R.id.dailyWallpaper -> toggleDailyWallpaperUpdate()
             R.id.alignment -> showAlignmentMenu(view)
@@ -150,9 +147,6 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             R.id.appThemeText -> showAppThemeMenu(view, showSystem = false)
             R.id.textSizeValue -> showTextSizeDialog()
             R.id.boldFont -> toggleBoldFont()
-
-            R.id.swipeLeftApp -> showAppListIfEnabled(Constants.FLAG_SET_SWIPE_LEFT_APP)
-            R.id.swipeRightApp -> showAppListIfEnabled(Constants.FLAG_SET_SWIPE_RIGHT_APP)
 
             R.id.aboutOlauncher -> {
                 prefs.aboutClicked = true
@@ -180,15 +174,12 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         when (view.id) {
             R.id.alignment -> {
                 prefs.appLabelAlignment = prefs.homeAlignment
-                findNavController().navigate(R.id.action_settingsFragment_to_appListFragment)
+                findNavController().navigateAnimated(R.id.action_settingsFragment_to_appListFragment, prefs.transitionAnim)
                 requireContext().showToast(getString(R.string.alignment_changed))
             }
 
             R.id.dailyWallpaper -> removeWallpaper()
             R.id.appThemeText -> showAppThemeMenu(view, showSystem = true)
-            R.id.swipeLeftApp -> toggleSwipeLeft()
-            R.id.swipeRightApp -> toggleSwipeRight()
-            R.id.toggleLock -> startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
         return true
     }
@@ -198,12 +189,9 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         binding.appInfo.setOnClickListener(this)
         binding.setLauncher.setOnClickListener(this)
         binding.aboutOlauncher.setOnClickListener(this)
-        binding.moreFeatures.setOnClickListener(this)
         binding.autoShowKeyboard.setOnClickListener(this)
-        binding.toggleLock.setOnClickListener(this)
         // Home button for recents feature disabled
         // binding.homeButtonRecents.setOnClickListener(this)
-        binding.homeAppsNum.setOnClickListener(this)
         binding.screenTimeOnOff.setOnClickListener(this)
         binding.dailyWallpaperUrl.setOnClickListener(this)
         binding.dailyWallpaper.setOnClickListener(this)
@@ -215,9 +203,11 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         binding.wallpaperPicker.setOnClickListener(this)
         binding.donate.setOnClickListener(this)
         binding.iconShape.setOnClickListener(this)
+        binding.drawerGrid.setOnClickListener(this)
+        binding.transitionAnim.setOnClickListener(this)
+        binding.touchAnim.setOnClickListener(this)
+        binding.focusAnim.setOnClickListener(this)
         binding.recentAppsToggle.setOnClickListener(this)
-        binding.swipeLeftApp.setOnClickListener(this)
-        binding.swipeRightApp.setOnClickListener(this)
         binding.appThemeText.setOnClickListener(this)
         binding.textSizeValue.setOnClickListener(this)
         binding.boldFont.setOnClickListener(this)
@@ -232,16 +222,9 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         binding.dailyWallpaper.setOnLongClickListener(this)
         binding.alignment.setOnLongClickListener(this)
         binding.appThemeText.setOnLongClickListener(this)
-        binding.swipeLeftApp.setOnLongClickListener(this)
-        binding.swipeRightApp.setOnLongClickListener(this)
-        binding.toggleLock.setOnLongClickListener(this)
     }
 
     private fun initObservers() {
-        if (prefs.firstSettingsOpen) {
-            viewModel.showDialog.postValue(Constants.Dialog.ABOUT)
-            prefs.firstSettingsOpen = false
-        }
         viewModel.isOlauncherDefault.observe(viewLifecycleOwner) {
             if (it) {
                 binding.setLauncher.text = getString(R.string.change_default_launcher)
@@ -251,20 +234,9 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         viewModel.homeAppAlignment.observe(viewLifecycleOwner) {
             populateAlignment()
         }
-        viewModel.updateSwipeApps.observe(viewLifecycleOwner) {
-            populateSwipeApps()
-        }
     }
 
     // Popup menus
-
-    private fun showHomeAppsNumMenu(anchor: View) {
-        anchor.showPopupMenu(
-            configure = { menu ->
-                for (num in 0..8) menu.add(Menu.NONE, num, num, num.toString())
-            }
-        ) { item -> updateHomeAppsNum(item.itemId) }
-    }
 
     private fun showDateTimeMenu(anchor: View) {
         anchor.showPopupMenu(R.menu.date_time) { item ->
@@ -328,43 +300,6 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         }
         dialog.setOnDismissListener { applyTextSizeScale() }
         showDialog(dialog)
-    }
-
-    // Prominent disclosure before sending the user to accessibility settings
-    private fun showAccessibilityDialog() {
-        val serviceEnabled = isAccessServiceEnabled(requireContext())
-        showDialog(
-            requireContext().createDialog(
-                title = R.string.gestures,
-                action = if (serviceEnabled) R.string.disable else R.string.enable,
-                message = R.string.accessibility_disclosure,
-                neutral = R.string.not_working,
-                onNeutral = { requireContext().openUrl(Constants.URL_DOUBLE_TAP) },
-                onAction = { openAccessibilityService() },
-            )
-        )
-    }
-
-    private fun toggleSwipeLeft() {
-        prefs.swipeLeftEnabled = !prefs.swipeLeftEnabled
-        if (prefs.swipeLeftEnabled) {
-            binding.swipeLeftApp.setTextColor(requireContext().getColorFromAttr(R.attr.primaryColor))
-            requireContext().showToast(getString(R.string.swipe_left_app_enabled))
-        } else {
-            binding.swipeLeftApp.setTextColor(requireContext().getColorFromAttr(R.attr.primaryColorTrans50))
-            requireContext().showToast(getString(R.string.swipe_left_app_disabled))
-        }
-    }
-
-    private fun toggleSwipeRight() {
-        prefs.swipeRightEnabled = !prefs.swipeRightEnabled
-        if (prefs.swipeRightEnabled) {
-            binding.swipeRightApp.setTextColor(requireContext().getColorFromAttr(R.attr.primaryColor))
-            requireContext().showToast(getString(R.string.swipe_right_app_enabled))
-        } else {
-            binding.swipeRightApp.setTextColor(requireContext().getColorFromAttr(R.attr.primaryColorTrans50))
-            requireContext().showToast(getString(R.string.swipe_right_app_disabled))
-        }
     }
 
     private fun toggleStatusBar() {
@@ -745,57 +680,11 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             return
         }
         viewModel.getHiddenApps()
-        findNavController().navigate(
+        findNavController().navigateAnimated(
             R.id.action_settingsFragment_to_appListFragment,
+            prefs.transitionAnim,
             bundleOf(Constants.Key.FLAG to Constants.FLAG_HIDDEN_APPS)
         )
-    }
-
-    private fun checkAdminPermission() {
-        val isAdmin: Boolean = deviceManager.isAdminActive(componentName)
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P)
-            prefs.lockModeOn = isAdmin
-    }
-
-    private fun openAccessibilityService() {
-        // prefs.lockModeOn = true
-        populateLockSettings()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-    }
-
-    private fun toggleLockMode() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            if (!prefs.lockModeOn && !isAccessServiceEnabled(requireContext())) {
-                showAccessibilityDialog()
-                return
-            }
-            prefs.lockModeOn = !prefs.lockModeOn
-        } else {
-            val isAdmin: Boolean = deviceManager.isAdminActive(componentName)
-            if (isAdmin) {
-                removeActiveAdmin("Admin permission removed.")
-                prefs.lockModeOn = false
-            } else {
-                val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
-                intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, componentName)
-                intent.putExtra(
-                    DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                    getString(R.string.admin_permission_message)
-                )
-                requireActivity().startActivityForResult(intent, Constants.REQUEST_CODE_ENABLE_ADMIN)
-            }
-        }
-        populateLockSettings()
-    }
-
-    private fun removeActiveAdmin(toastMessage: String? = null) {
-        try {
-            deviceManager.removeActiveAdmin(componentName) // for backward compatibility
-            requireContext().showToast(toastMessage)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
     }
 
     private fun removeWallpaper() {
@@ -830,12 +719,6 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             requireContext().showToast(getString(R.string.your_wallpaper_will_update_shortly))
         else
             requireContext().showToast(getString(R.string.olauncher_is_not_default_launcher), Toast.LENGTH_LONG)
-    }
-
-    private fun updateHomeAppsNum(num: Int) {
-        binding.homeAppsNum.text = num.toString()
-        prefs.homeAppsNum = num
-        viewModel.refreshHome(true)
     }
 
     private var pendingTextSizeScale: Float = -1f
@@ -981,50 +864,11 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
     //     )
     // }
 
-    private fun populateLockSettings() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            binding.toggleLock.text = getString(
-                if (prefs.lockModeOn && isAccessServiceEnabled(requireContext())) R.string.on
-                else R.string.off
-            )
-        } else {
-            binding.toggleLock.text = getString(
-                if (prefs.lockModeOn) R.string.on
-                else R.string.off
-            )
-        }
-    }
-
-    private fun populateSwipeApps() {
-        binding.swipeLeftApp.text = prefs.appNameSwipeLeft
-        binding.swipeRightApp.text = prefs.appNameSwipeRight
-        if (!prefs.swipeLeftEnabled)
-            binding.swipeLeftApp.setTextColor(requireContext().getColorFromAttr(R.attr.primaryColorTrans50))
-        if (!prefs.swipeRightEnabled)
-            binding.swipeRightApp.setTextColor(requireContext().getColorFromAttr(R.attr.primaryColorTrans50))
-    }
-
 //    private fun populateDigitalWellbeing() {
 //        binding.digitalWellbeing.isVisible = requireContext().isPackageInstalled(Constants.DIGITAL_WELLBEING_PACKAGE_NAME).not()
 //                && requireContext().isPackageInstalled(Constants.DIGITAL_WELLBEING_SAMSUNG_PACKAGE_NAME).not()
 //                && prefs.hideDigitalWellbeing.not()
 //    }
-
-    private fun showAppListIfEnabled(flag: Int) {
-        if ((flag == Constants.FLAG_SET_SWIPE_LEFT_APP) and !prefs.swipeLeftEnabled) {
-            requireContext().showToast(getString(R.string.long_press_to_enable))
-            return
-        }
-        if ((flag == Constants.FLAG_SET_SWIPE_RIGHT_APP) and !prefs.swipeRightEnabled) {
-            requireContext().showToast(getString(R.string.long_press_to_enable))
-            return
-        }
-        viewModel.getAppList(true)
-        findNavController().navigate(
-            R.id.action_settingsFragment_to_appListFragment,
-            bundleOf(Constants.Key.FLAG to flag)
-        )
-    }
 
     private fun populateActionHints() {
         if (prefs.aboutClicked.not())
@@ -1034,10 +878,134 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             binding.rate.setCompoundDrawablesWithIntrinsicBounds(0, android.R.drawable.arrow_down_float, 0, 0)
     }
 
-    private fun populateProMessage() {
-        if (prefs.proMessageShown.not() && prefs.userState == Constants.UserState.SHARE) {
-            prefs.proMessageShown = true
-            viewModel.showDialog.postValue(Constants.Dialog.PRO_MESSAGE)
+    // App drawer grid + animations
+
+    private enum class AnimKind { TRANSITION, TOUCH, FOCUS }
+
+    private fun populateDrawerGrid() {
+        val columns = prefs.drawerColumns
+        val rows = prefs.drawerRows
+        binding.drawerGrid.text = if (columns == rows && columns in 3..9)
+            "$columns × $rows"
+        else
+            getString(R.string.fokus_grid_custom) + " $columns × $rows"
+    }
+
+    private fun showGridMenu(anchor: View) {
+        val custom = Menu.FIRST + 100
+        anchor.showPopupMenu(
+            configure = { menu ->
+                for (n in 3..9) menu.add(Menu.NONE, n, n, "$n × $n")
+                menu.add(Menu.NONE, custom, custom, R.string.fokus_grid_custom)
+            }
+        ) { item ->
+            if (item.itemId == custom) showCustomGridDialog()
+            else updateGrid(item.itemId, item.itemId)
+        }
+    }
+
+    private fun updateGrid(columns: Int, rows: Int) {
+        prefs.drawerColumns = columns
+        prefs.drawerRows = rows
+        populateDrawerGrid()
+    }
+
+    private fun showCustomGridDialog() {
+        val context = requireContext()
+        val density = resources.displayMetrics.density
+        fun dp(v: Int) = (v * density).toInt()
+        fun field(hintRes: Int, min: Int, max: Int, value: Int) = EditText(context).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            hint = getString(hintRes, min, max)
+            setText(value.toString())
+            setSelectAllOnFocus(true)
+        }
+        val columns = field(R.string.fokus_grid_columns, Constants.GRID_MIN_COLUMNS, Constants.GRID_MAX_COLUMNS, prefs.drawerColumns)
+        val rows = field(R.string.fokus_grid_rows, Constants.GRID_MIN_ROWS, Constants.GRID_MAX_ROWS, prefs.drawerRows)
+        val content = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(8), dp(24), 0)
+            addView(columns)
+            addView(rows)
+        }
+        AlertDialog.Builder(context)
+            .setTitle(R.string.fokus_grid_custom_title)
+            .setView(content)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val c = columns.text.toString().toIntOrNull()
+                val r = rows.text.toString().toIntOrNull()
+                if (c == null || r == null ||
+                    c !in Constants.GRID_MIN_COLUMNS..Constants.GRID_MAX_COLUMNS ||
+                    r !in Constants.GRID_MIN_ROWS..Constants.GRID_MAX_ROWS
+                ) requireContext().showToast(R.string.fokus_grid_invalid)
+                else updateGrid(c, r)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun transitionLabel(mode: Int) = getString(
+        when (mode) {
+            FokusAnim.TRANSITION_FADE -> R.string.fokus_anim_fade
+            FokusAnim.TRANSITION_SLIDE -> R.string.fokus_anim_slide
+            FokusAnim.TRANSITION_ZOOM -> R.string.fokus_anim_zoom
+            FokusAnim.TRANSITION_OFF -> R.string.fokus_anim_off
+            else -> R.string.fokus_anim_default
+        }
+    )
+
+    private fun touchLabel(mode: Int) = getString(
+        when (mode) {
+            FokusAnim.TOUCH_PRESS -> R.string.fokus_anim_press
+            FokusAnim.TOUCH_BOUNCE -> R.string.fokus_anim_bounce
+            else -> R.string.fokus_anim_off
+        }
+    )
+
+    private fun focusLabel(mode: Int) = getString(
+        when (mode) {
+            FokusAnim.FOCUS_FADE -> R.string.fokus_anim_fade
+            FokusAnim.FOCUS_SLIDE -> R.string.fokus_anim_slide
+            FokusAnim.FOCUS_ZOOM -> R.string.fokus_anim_zoom
+            else -> R.string.fokus_anim_off
+        }
+    )
+
+    private fun populateAnimations() {
+        binding.transitionAnim.text = transitionLabel(prefs.transitionAnim)
+        binding.touchAnim.text = touchLabel(prefs.touchAnim)
+        binding.focusAnim.text = focusLabel(prefs.focusAnim)
+    }
+
+    private fun showAnimMenu(anchor: View, kind: AnimKind) {
+        val modes = when (kind) {
+            AnimKind.TRANSITION -> listOf(
+                FokusAnim.TRANSITION_DEFAULT, FokusAnim.TRANSITION_FADE, FokusAnim.TRANSITION_SLIDE,
+                FokusAnim.TRANSITION_ZOOM, FokusAnim.TRANSITION_OFF
+            )
+            AnimKind.TOUCH -> listOf(FokusAnim.TOUCH_OFF, FokusAnim.TOUCH_PRESS, FokusAnim.TOUCH_BOUNCE)
+            AnimKind.FOCUS -> listOf(
+                FokusAnim.FOCUS_OFF, FokusAnim.FOCUS_FADE, FokusAnim.FOCUS_SLIDE, FokusAnim.FOCUS_ZOOM
+            )
+        }
+        anchor.showPopupMenu(
+            configure = { menu ->
+                modes.forEach { mode ->
+                    val label = when (kind) {
+                        AnimKind.TRANSITION -> transitionLabel(mode)
+                        AnimKind.TOUCH -> touchLabel(mode)
+                        AnimKind.FOCUS -> focusLabel(mode)
+                    }
+                    menu.add(Menu.NONE, mode, mode, label)
+                }
+            }
+        ) { item ->
+            when (kind) {
+                AnimKind.TRANSITION -> prefs.transitionAnim = item.itemId
+                AnimKind.TOUCH -> prefs.touchAnim = item.itemId
+                AnimKind.FOCUS -> prefs.focusAnim = item.itemId
+            }
+            populateAnimations()
         }
     }
 
@@ -1050,8 +1018,4 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         _binding = null
     }
 
-    override fun onDestroy() {
-        viewModel.checkForMessages.call()
-        super.onDestroy()
-    }
 }

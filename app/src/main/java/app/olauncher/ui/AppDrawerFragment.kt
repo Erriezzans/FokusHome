@@ -26,6 +26,7 @@ import android.text.Spannable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
 import android.view.animation.AnimationUtils
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.InputMethodManager
@@ -46,6 +47,8 @@ import app.olauncher.databinding.FragmentAppDrawerBinding
 import app.olauncher.helper.deletePinnedShortcut
 import app.olauncher.helper.hideKeyboard
 import app.olauncher.helper.isEinkDisplay
+import app.olauncher.helper.FokusAnim
+import app.olauncher.helper.navigateAnimated
 import app.olauncher.helper.isSystemAnimationsDisabled
 import app.olauncher.helper.isSystemApp
 import app.olauncher.helper.openAppInfo
@@ -186,6 +189,8 @@ class AppDrawerFragment : BaseFragment() {
     }
 
     private fun initAdapter() {
+        // New view: cell size must be measured again (grid size or text size may have changed)
+        maxRecyclerHeight = 0
         adapter = AppDrawerAdapter(
             flag,
             prefs.appLabelAlignment,
@@ -281,7 +286,7 @@ class AppDrawerFragment : BaseFragment() {
             }
         )
 
-        val spanCount = prefs.drawerColumns.coerceIn(3, 7)
+        val spanCount = prefs.drawerColumns
         gridLayoutManager = object : GridLayoutManager(requireContext(), spanCount) {
             override fun scrollVerticallyBy(
                 dy: Int,
@@ -307,6 +312,7 @@ class AppDrawerFragment : BaseFragment() {
             }
         }
 
+        adapter.touchAnim = prefs.touchAnim
         binding.recyclerView.layoutManager = gridLayoutManager
         adapter.focusKeys = if (flag == Constants.FLAG_FOCUS_APPS) prefs.focusApps else emptySet()
         focusPinned = if (flag == Constants.FLAG_FOCUS_APPS) prefs.focusApps else emptySet()
@@ -391,6 +397,7 @@ class AppDrawerFragment : BaseFragment() {
 
         adapter.setAppList(combined)
         adapter.filter.filter(binding.search.query)
+        if (focusInMode >= 0) binding.recyclerView.post { runFocusIn() }
     }
 
     private fun initClickListeners() {
@@ -460,8 +467,6 @@ class AppDrawerFragment : BaseFragment() {
         // The drawer is the home screen: nothing to exit to
         if (findNavController().currentDestination?.id == R.id.mainFragment) return
         findNavController().popBackStack()
-        if (flag == Constants.FLAG_LAUNCH_APP)
-            viewModel.checkForMessages.call()
     }
 
     private fun isRoot() = findNavController().currentDestination?.id == R.id.mainFragment
@@ -526,25 +531,85 @@ class AppDrawerFragment : BaseFragment() {
     }
 
     private fun enterFocusMode() {
-        prefs.focusModeEnabled = true
-        updateTopActions()
-        binding.recyclerView.scrollToPosition(0)
         if (prefs.focusApps.isEmpty()) {
             // Nothing picked yet: go straight to the picker. It loads every app by itself,
             // so no focus-only list is loaded at the same time.
+            prefs.focusModeEnabled = true
+            updateTopActions()
+            binding.recyclerView.scrollToPosition(0)
             requireContext().showToast(R.string.focus_pick_first)
             openFocusPicker()
-        } else {
+            return
+        }
+        animateFocusSwitch(entering = true) {
+            prefs.focusModeEnabled = true
+            updateTopActions()
+            binding.recyclerView.scrollToPosition(0)
             viewModel.getAppList()
             binding.focusAction.post { showEditHint() }
         }
     }
 
     private fun setFocusMode(enabled: Boolean) {
-        prefs.focusModeEnabled = enabled
-        updateTopActions()
-        viewModel.getAppList()
-        binding.recyclerView.scrollToPosition(0)
+        animateFocusSwitch(entering = enabled) {
+            prefs.focusModeEnabled = enabled
+            updateTopActions()
+            viewModel.getAppList()
+            binding.recyclerView.scrollToPosition(0)
+        }
+    }
+
+    // Focus space in/out animation: the app grid leaves, the list is swapped, the new grid arrives
+    private var focusInMode = -1
+    private var focusInEntering = true
+
+    private fun focusAnimViews(): List<View> =
+        listOf(binding.recyclerView, binding.alphabetIndex, binding.recentRow)
+
+    private fun animateFocusSwitch(entering: Boolean, change: () -> Unit) {
+        val mode = prefs.focusAnim
+        if (mode == FokusAnim.FOCUS_OFF || requireContext().isSystemAnimationsDisabled()) {
+            change()
+            return
+        }
+        val height = binding.recyclerView.height.toFloat()
+        focusAnimViews().forEachIndexed { index, view ->
+            val out = view.animate().alpha(0f).setDuration(140)
+            when (mode) {
+                FokusAnim.FOCUS_SLIDE -> out.translationY(if (entering) -height * 0.05f else height * 0.05f)
+                FokusAnim.FOCUS_ZOOM -> out.scaleX(if (entering) 1.08f else 0.92f)
+                    .scaleY(if (entering) 1.08f else 0.92f)
+            }
+            if (index == 0) out.withEndAction {
+                if (_binding == null) return@withEndAction
+                focusInMode = mode
+                focusInEntering = entering
+                change()
+                // The new list arrives from the view model; if it does not, play the entrance anyway
+                binding.recyclerView.postDelayed({ runFocusIn() }, 350)
+            }
+            out.start()
+        }
+    }
+
+    private fun runFocusIn() {
+        if (_binding == null || focusInMode < 0) return
+        val mode = focusInMode
+        val entering = focusInEntering
+        focusInMode = -1
+        val height = binding.recyclerView.height.toFloat()
+        focusAnimViews().forEach { view ->
+            view.alpha = 0f
+            when (mode) {
+                FokusAnim.FOCUS_SLIDE -> view.translationY = if (entering) height * 0.05f else -height * 0.05f
+                FokusAnim.FOCUS_ZOOM -> {
+                    view.scaleX = if (entering) 0.92f else 1.08f
+                    view.scaleY = view.scaleX
+                }
+            }
+            view.animate().alpha(1f).translationY(0f).scaleX(1f).scaleY(1f)
+                .setDuration(220).setInterpolator(DecelerateInterpolator()).start()
+        }
     }
 
     /** Edit the focus apps. Only reachable from inside the focus space; the picker shows every app. */
@@ -552,8 +617,9 @@ class AppDrawerFragment : BaseFragment() {
         hintPopup?.dismiss()
         needsListRefresh = true
         viewModel.getAppList(ignoreFocus = true)
-        findNavController().navigate(
+        findNavController().navigateAnimated(
             R.id.action_mainFragment_to_appListFragment,
+            prefs.transitionAnim,
             bundleOf(
                 Constants.Key.FLAG to Constants.FLAG_FOCUS_APPS,
                 Constants.Key.RENAME to false
@@ -626,18 +692,42 @@ class AppDrawerFragment : BaseFragment() {
     private fun openSettings() {
         val navController = findNavController()
         if (isRoot())
-            navController.navigate(R.id.action_mainFragment_to_settingsFragment)
+            navController.navigateAnimated(R.id.action_mainFragment_to_settingsFragment, prefs.transitionAnim)
         else
-            navController.navigate(R.id.action_appListFragment_to_settingsFragment2)
+            navController.navigateAnimated(
+                R.id.action_appListFragment_to_settingsFragment2,
+                prefs.transitionAnim,
+                popUpTo = R.id.appListFragment,
+                inclusive = true
+            )
     }
 
     private fun updateCellHeight() {
         if (_binding == null) return
         val rows = prefs.drawerRows.coerceAtLeast(1)
-        val usable = maxRecyclerHeight - binding.recyclerView.paddingTop - binding.recyclerView.paddingBottom
+        val columns = prefs.drawerColumns.coerceAtLeast(1)
+        val recycler = binding.recyclerView
+        val usable = maxRecyclerHeight - recycler.paddingTop - recycler.paddingBottom
         val cell = usable / rows
-        if (cell > 0 && cell != adapter.cellHeight) {
+        if (cell <= 0) return
+
+        // Icons and labels follow the grid: big grids get smaller icons, small grids get bigger ones
+        val density = resources.displayMetrics.density
+        val cellWidth = (recycler.width - recycler.paddingLeft - recycler.paddingRight) / columns
+        val icon = if (cellWidth > 0)
+            minOf(cellWidth * 0.7f, cell * 0.5f).coerceIn(26 * density, 56 * density).toInt()
+        else 0
+        val label = when {
+            columns >= 9 -> 9f
+            columns >= 7 -> 10f
+            columns >= 5 -> 11f
+            else -> 12f
+        }
+
+        if (cell != adapter.cellHeight || icon != adapter.iconSizePx || label != adapter.labelSizeSp) {
             adapter.cellHeight = cell
+            adapter.iconSizePx = icon
+            adapter.labelSizeSp = label
             adapter.notifyDataSetChanged()
         }
     }
@@ -730,7 +820,7 @@ class AppDrawerFragment : BaseFragment() {
         if (_binding == null) return
         val row = binding.recentRow
         val wasVisible = row.visibility == View.VISIBLE
-        val columns = prefs.drawerColumns.coerceIn(3, 7)
+        val columns = prefs.drawerColumns
 
         val recents = if (flag == Constants.FLAG_LAUNCH_APP && prefs.showRecentApps) {
             val byKey = HashMap<String, AppModel.App>()

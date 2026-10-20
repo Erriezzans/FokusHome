@@ -115,17 +115,18 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:paddingVertical="8dp"
-                        android:text="@string/apps_on_home_screen"
+                        android:text="@string/fokus_grid_size"
                         android:textColor="?attr/primaryColor" />
 
                     <TextView
-                        android:id="@+id/homeAppsNum"
+                        android:id="@+id/drawerGrid"
                         style="@style/TextSmallBold"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="end|bottom"
                         android:layout_marginEnd="4dp"
-                        android:padding="8dp" />
+                        android:padding="8dp"
+                        android:text="5 × 6" />
                 </FrameLayout>
 
                 <FrameLayout
@@ -503,136 +504,85 @@
                         android:paddingEnd="8dp"
                         tools:text="1.0" />
                 </FrameLayout>
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="12dp"
-                android:background="@drawable/rounded_rect_shade_color"
-                android:orientation="vertical"
-                android:padding="12dp">
-
-                <TextView
-                    style="@style/TextLarge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="@string/gestures"
-                    android:textColor="?attr/primaryColor" />
-
-                <LinearLayout android:visibility="gone"
+                <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:orientation="horizontal">
+                    android:layout_marginTop="12dp">
 
                     <TextView
                         style="@style/TextSmall"
-                        android:layout_width="0dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
-                        android:layout_marginEnd="24dp"
-                        android:layout_weight="1"
-                        android:lines="1"
                         android:paddingVertical="8dp"
-                        android:text="@string/swipe_left_app"
+                        android:text="@string/fokus_anim_transition"
                         android:textColor="?attr/primaryColor" />
 
                     <TextView
-                        android:id="@+id/swipeLeftApp"
+                        android:id="@+id/transitionAnim"
                         style="@style/TextSmallBold"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="end|bottom"
                         android:layout_marginEnd="4dp"
-                        android:lines="1"
-                        android:padding="8dp" />
-                </LinearLayout>
+                        android:padding="8dp"
+                        android:text="Default" />
+                </FrameLayout>
 
-                <LinearLayout android:visibility="gone"
+                <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:orientation="horizontal">
+                    android:layout_marginTop="12dp">
 
                     <TextView
                         style="@style/TextSmall"
-                        android:layout_width="0dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
-                        android:layout_marginEnd="24dp"
-                        android:layout_weight="1"
-                        android:lines="1"
                         android:paddingVertical="8dp"
-                        android:text="@string/swipe_right_app"
+                        android:text="@string/fokus_anim_touch"
                         android:textColor="?attr/primaryColor" />
 
                     <TextView
-                        android:id="@+id/swipeRightApp"
+                        android:id="@+id/touchAnim"
                         style="@style/TextSmallBold"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="end|bottom"
                         android:layout_marginEnd="4dp"
-                        android:lines="1"
-                        android:padding="8dp" />
-                </LinearLayout>
+                        android:padding="8dp"
+                        android:text="Press" />
+                </FrameLayout>
 
                 <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginTop="12dp"
-                    android:visibility="visible">
+                    android:layout_marginTop="12dp">
 
                     <TextView
                         style="@style/TextSmall"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
                         android:paddingVertical="8dp"
-                        android:text="@string/gestures"
+                        android:text="@string/fokus_anim_focus"
                         android:textColor="?attr/primaryColor" />
 
                     <TextView
-                        android:id="@+id/toggleLock"
+                        android:id="@+id/focusAnim"
                         style="@style/TextSmallBold"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="end"
-                        android:padding="10dp"
-                        android:text="@string/off" />
+                        android:layout_gravity="end|bottom"
+                        android:layout_marginEnd="4dp"
+                        android:padding="8dp"
+                        android:text="Fade" />
                 </FrameLayout>
 
-                <!-- Home button for recents feature disabled
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginTop="12dp"
-                    android:visibility="visible">
 
-                    <TextView
-                        style="@style/TextSmall"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingVertical="8dp"
-                        android:text="@string/home_button_show_recents"
-                        android:textColor="?attr/primaryColor" />
-
-                    <TextView
-                        android:id="@+id/homeButtonRecents"
-                        style="@style/TextSmallBold"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="end"
-                        android:padding="10dp"
-                        android:text="@string/off" />
-                </FrameLayout>
-                -->
             </LinearLayout>
+
+            
 
             <LinearLayout
                 android:layout_width="match_parent"

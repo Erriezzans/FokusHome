@@ -2,6 +2,12 @@ package app.olauncher.data
 
 object Constants {
 
+    // App drawer grid limits (presets 3x3 .. 9x9, custom sizes stay inside these)
+    const val GRID_MIN_COLUMNS = 2
+    const val GRID_MAX_COLUMNS = 12
+    const val GRID_MIN_ROWS = 2
+    const val GRID_MAX_ROWS = 15
+
     object Key {
         const val FLAG = "flag"
         const val RENAME = "rename"

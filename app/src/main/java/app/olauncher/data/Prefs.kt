@@ -34,6 +34,9 @@ class Prefs(context: Context) {
     private val DRAWER_ROWS = "DRAWER_ROWS"
     private val CLOCK_FORMAT = "CLOCK_FORMAT"
     private val ICON_SHAPE = "ICON_SHAPE"
+    private val TRANSITION_ANIM = "TRANSITION_ANIM"
+    private val TOUCH_ANIM = "TOUCH_ANIM"
+    private val FOCUS_ANIM = "FOCUS_ANIM"
     private val RECENT_APPS = "RECENT_APPS"
     private val SHOW_RECENT_APPS = "SHOW_RECENT_APPS"
     private val FOCUS_INTRO_SHOWN = "FOCUS_INTRO_SHOWN"
@@ -295,12 +298,27 @@ class Prefs(context: Context) {
 
     // App grid: number of columns, and how many rows fit on one screen
     var drawerColumns: Int
-        get() = prefs.getInt(DRAWER_COLUMNS, 5)
+        get() = prefs.getInt(DRAWER_COLUMNS, 5).coerceIn(Constants.GRID_MIN_COLUMNS, Constants.GRID_MAX_COLUMNS)
         set(value) = prefs.edit { putInt(DRAWER_COLUMNS, value).apply() }
 
     var drawerRows: Int
-        get() = prefs.getInt(DRAWER_ROWS, 6)
+        get() = prefs.getInt(DRAWER_ROWS, 6).coerceIn(Constants.GRID_MIN_ROWS, Constants.GRID_MAX_ROWS)
         set(value) = prefs.edit { putInt(DRAWER_ROWS, value).apply() }
+
+    // Screen transitions: 0 = default, 1 = fade, 2 = slide, 3 = zoom, 4 = off
+    var transitionAnim: Int
+        get() = prefs.getInt(TRANSITION_ANIM, 0)
+        set(value) = prefs.edit { putInt(TRANSITION_ANIM, value).apply() }
+
+    // App touch feedback: 0 = off, 1 = press (shrink), 2 = bounce
+    var touchAnim: Int
+        get() = prefs.getInt(TOUCH_ANIM, 1)
+        set(value) = prefs.edit { putInt(TOUCH_ANIM, value).apply() }
+
+    // Entering / leaving the focus space: 0 = off, 1 = fade, 2 = slide, 3 = zoom
+    var focusAnim: Int
+        get() = prefs.getInt(FOCUS_ANIM, 1)
+        set(value) = prefs.edit { putInt(FOCUS_ANIM, value).apply() }
 
     // 0 = follow system, 1 = 24-hour, 2 = 12-hour
     var clockFormat: Int
