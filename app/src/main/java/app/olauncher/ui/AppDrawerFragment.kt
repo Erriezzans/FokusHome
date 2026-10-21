@@ -24,6 +24,7 @@ import android.os.Bundle
 import android.os.Process
 import android.text.Spannable
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
@@ -50,6 +51,7 @@ import app.olauncher.helper.isEinkDisplay
 import app.olauncher.helper.FokusAnim
 import app.olauncher.helper.navigateAnimated
 import app.olauncher.helper.isSystemAnimationsDisabled
+import app.olauncher.helper.expandNotificationDrawer
 import app.olauncher.helper.isSystemApp
 import app.olauncher.helper.openAppInfo
 import app.olauncher.helper.openSearch
@@ -58,6 +60,9 @@ import app.olauncher.helper.showKeyboard
 import app.olauncher.helper.showToast
 import java.text.Normalizer
 import app.olauncher.helper.uninstall
+
+private const val GRID_BIG_COLUMNS = 7
+private const val GRID_BIG_ROWS = 8
 
 class AppDrawerFragment : BaseFragment() {
 
@@ -108,8 +113,10 @@ class AppDrawerFragment : BaseFragment() {
         }
 
         initViews()
+        applyLayoutOrder()
         initSearch()
         initAdapter()
+        initPullDown()
         initObservers()
         initClickListeners()
     }
@@ -186,6 +193,71 @@ class AppDrawerFragment : BaseFragment() {
         }
         cachedIsCjkKeyboard = result
         return result
+    }
+
+    /**
+     * Where the search/Focus bar and the recent apps row sit:
+     * - bottom option: list on top, recent apps and the bar below it
+     * - big grid: recent apps move below the list instead of squeezing it from above
+     * - otherwise: bar and recent apps above the list
+     */
+    private fun applyLayoutOrder() {
+        val root = binding.root
+        val atBottom = prefs.barsAtBottom
+        val bigGrid = prefs.drawerColumns >= GRID_BIG_COLUMNS || prefs.drawerRows >= GRID_BIG_ROWS
+        val density = resources.displayMetrics.density
+        val order = when {
+            atBottom -> listOf(
+                binding.clockLayout, binding.listContainer, binding.recentRow, binding.barSpace, binding.topBar
+            )
+            bigGrid -> listOf(
+                binding.clockLayout, binding.topBar, binding.barSpace, binding.listContainer, binding.recentRow
+            )
+            else -> listOf(
+                binding.clockLayout, binding.topBar, binding.barSpace, binding.recentRow, binding.listContainer
+            )
+        }
+        order.forEach { root.removeView(it) }
+        order.forEach { root.addView(it) }
+
+        val recentBelowList = atBottom || bigGrid
+        (binding.recentRow.layoutParams as LinearLayout.LayoutParams).apply {
+            topMargin = if (recentBelowList) (4 * density).toInt() else 0
+            bottomMargin = (4 * density).toInt()
+        }
+        binding.topBar.setPadding(0, 0, 0, if (atBottom) (8 * density).toInt() else 0)
+    }
+
+    /** Pull down on a list that is already at the top: open the notification shade. */
+    private fun initPullDown() {
+        val threshold = 72 * resources.displayMetrics.density
+        var startX = 0f
+        var startY = 0f
+        var armed = false
+        binding.recyclerView.addOnItemTouchListener(object : RecyclerView.SimpleOnItemTouchListener() {
+            override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        startX = e.x
+                        startY = e.y
+                        armed = prefs.pullDownNotifications && flag == Constants.FLAG_LAUNCH_APP &&
+                                !rv.canScrollVertically(-1)
+                    }
+
+                    MotionEvent.ACTION_MOVE -> if (armed) {
+                        val dy = e.y - startY
+                        val dx = Math.abs(e.x - startX)
+                        if (dy > threshold && dy > dx * 1.5f) {
+                            armed = false
+                            expandNotificationDrawer(requireContext())
+                        }
+                    }
+
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> armed = false
+                }
+                return false
+            }
+        })
     }
 
     private fun initAdapter() {
@@ -729,6 +801,9 @@ class AppDrawerFragment : BaseFragment() {
             adapter.iconSizePx = icon
             adapter.labelSizeSp = label
             adapter.notifyDataSetChanged()
+            // Recent apps use the same icon / label size as the grid
+            shownRecentKeys = emptyList()
+            updateRecents()
         }
     }
 
@@ -852,7 +927,7 @@ class AppDrawerFragment : BaseFragment() {
         }
         row.addView(label.root)
 
-        val iconSize = (40 * resources.displayMetrics.density).toInt()
+        val iconSize = if (adapter.iconSizePx > 0) adapter.iconSizePx else (40 * resources.displayMetrics.density).toInt()
         for (app in recents) {
             val cell = AdapterAppDrawerBinding.inflate(layoutInflater, row, false)
             cell.root.layoutParams =
@@ -862,6 +937,8 @@ class AppDrawerFragment : BaseFragment() {
                 height = iconSize
             }
             cell.appTitle.maxLines = 1
+            if (adapter.labelSizeSp > 0f) cell.appTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, adapter.labelSizeSp)
+            FokusAnim.applyTouch(cell.root, prefs.touchAnim)
             AppIconLoader.load(cell.appIcon, app)
             cell.appTitle.text = app.appLabel
             cell.root.setOnClickListener {

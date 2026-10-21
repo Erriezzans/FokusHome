@@ -35,6 +35,8 @@ class Prefs(context: Context) {
     private val CLOCK_FORMAT = "CLOCK_FORMAT"
     private val ICON_SHAPE = "ICON_SHAPE"
     private val TRANSITION_ANIM = "TRANSITION_ANIM"
+    private val BARS_AT_BOTTOM = "BARS_AT_BOTTOM"
+    private val PULL_DOWN_NOTIFICATIONS = "PULL_DOWN_NOTIFICATIONS"
     private val TOUCH_ANIM = "TOUCH_ANIM"
     private val FOCUS_ANIM = "FOCUS_ANIM"
     private val RECENT_APPS = "RECENT_APPS"
@@ -304,6 +306,16 @@ class Prefs(context: Context) {
     var drawerRows: Int
         get() = prefs.getInt(DRAWER_ROWS, 6).coerceIn(Constants.GRID_MIN_ROWS, Constants.GRID_MAX_ROWS)
         set(value) = prefs.edit { putInt(DRAWER_ROWS, value).apply() }
+
+    // Search bar, Focus buttons and recent apps at the bottom of the drawer instead of the top
+    var barsAtBottom: Boolean
+        get() = prefs.getBoolean(BARS_AT_BOTTOM, false)
+        set(value) = prefs.edit { putBoolean(BARS_AT_BOTTOM, value).apply() }
+
+    // Pull down on the app list (when it is already at the top) opens the notification shade
+    var pullDownNotifications: Boolean
+        get() = prefs.getBoolean(PULL_DOWN_NOTIFICATIONS, true)
+        set(value) = prefs.edit { putBoolean(PULL_DOWN_NOTIFICATIONS, value).apply() }
 
     // Screen transitions: 0 = default, 1 = fade, 2 = slide, 3 = zoom, 4 = off
     var transitionAnim: Int

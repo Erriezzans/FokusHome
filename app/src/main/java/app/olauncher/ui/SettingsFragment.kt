@@ -95,7 +95,6 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         viewModel.isOlauncherDefault()
 
         populateKeyboardText()
-        populateScreenTimeOnOff()
         // Home button for recents feature disabled
         // populateHomeButtonRecents()
         populateWallpaperText()
@@ -111,6 +110,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         populateIconShape()
         populateDrawerGrid()
         populateAnimations()
+        populateLayoutOptions()
         populateRecentApps()
         populateActionHints()
         initClickListeners()
@@ -123,7 +123,6 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
     override fun onClick(view: View) {
         when (view.id) {
             R.id.olauncherHiddenApps -> showHiddenApps()
-            R.id.screenTimeOnOff -> viewModel.showDialog.postValue(Constants.Dialog.DIGITAL_WELLBEING)
             R.id.appInfo -> openAppInfo(requireContext(), Process.myUserHandle(), BuildConfig.APPLICATION_ID)
             R.id.setLauncher -> viewModel.resetLauncherLiveData.call()
             // Home button for recents feature disabled
@@ -133,6 +132,14 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             R.id.transitionAnim -> showAnimMenu(view, AnimKind.TRANSITION)
             R.id.touchAnim -> showAnimMenu(view, AnimKind.TOUCH)
             R.id.focusAnim -> showAnimMenu(view, AnimKind.FOCUS)
+            R.id.barsPosition -> {
+                prefs.barsAtBottom = !prefs.barsAtBottom
+                populateLayoutOptions()
+            }
+            R.id.pullDownToggle -> {
+                prefs.pullDownNotifications = !prefs.pullDownNotifications
+                populateLayoutOptions()
+            }
             R.id.dailyWallpaperUrl -> requireContext().openUrl(prefs.dailyWallpaperUrl)
             R.id.dailyWallpaper -> toggleDailyWallpaperUpdate()
             R.id.alignment -> showAlignmentMenu(view)
@@ -192,7 +199,6 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         binding.autoShowKeyboard.setOnClickListener(this)
         // Home button for recents feature disabled
         // binding.homeButtonRecents.setOnClickListener(this)
-        binding.screenTimeOnOff.setOnClickListener(this)
         binding.dailyWallpaperUrl.setOnClickListener(this)
         binding.dailyWallpaper.setOnClickListener(this)
         binding.alignment.setOnClickListener(this)
@@ -207,6 +213,8 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         binding.transitionAnim.setOnClickListener(this)
         binding.touchAnim.setOnClickListener(this)
         binding.focusAnim.setOnClickListener(this)
+        binding.barsPosition.setOnClickListener(this)
+        binding.pullDownToggle.setOnClickListener(this)
         binding.recentAppsToggle.setOnClickListener(this)
         binding.appThemeText.setOnClickListener(this)
         binding.textSizeValue.setOnClickListener(this)
@@ -812,13 +820,6 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         binding.boldFont.text = getString(if (prefs.boldFont) R.string.on else R.string.off)
     }
 
-    private fun populateScreenTimeOnOff() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            if (requireContext().appUsagePermissionGranted()) binding.screenTimeOnOff.text = getString(R.string.on)
-            else binding.screenTimeOnOff.text = getString(R.string.off)
-        } else binding.screenTimeLayout.visibility = View.GONE
-    }
-
     private fun populateKeyboardText() {
         if (prefs.autoShowKeyboard) binding.autoShowKeyboard.text = getString(R.string.on)
         else binding.autoShowKeyboard.text = getString(R.string.off)
@@ -970,6 +971,14 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             else -> R.string.fokus_anim_off
         }
     )
+
+    private fun populateLayoutOptions() {
+        binding.barsPosition.text = getString(
+            if (prefs.barsAtBottom) R.string.fokus_position_bottom else R.string.fokus_position_top
+        )
+        binding.pullDownToggle.text =
+            getString(if (prefs.pullDownNotifications) R.string.fokus_on else R.string.fokus_off)
+    }
 
     private fun populateAnimations() {
         binding.transitionAnim.text = transitionLabel(prefs.transitionAnim)
