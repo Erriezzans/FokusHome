@@ -41,10 +41,6 @@ class Prefs(context: Context) {
     private val MOOD_MESSAGE = "MOOD_MESSAGE"
     private val WEATHER_CITY = "WEATHER_CITY"
     private val WEATHER_CACHE = "WEATHER_CACHE"
-    private val ALPHABET_POSITION = "ALPHABET_POSITION"
-    private val MOOD_MESSAGE = "MOOD_MESSAGE"
-    private val WEATHER_CITY = "WEATHER_CITY"
-    private val WEATHER_CACHE = "WEATHER_CACHE"
     private val PULL_DOWN_NOTIFICATIONS = "PULL_DOWN_NOTIFICATIONS"
     private val TOUCH_ANIM = "TOUCH_ANIM"
     private val FOCUS_ANIM = "FOCUS_ANIM"
@@ -343,26 +339,6 @@ class Prefs(context: Context) {
     var barsAtBottom: Boolean
         get() = prefs.getBoolean(BARS_AT_BOTTOM, false)
         set(value) = prefs.edit { putBoolean(BARS_AT_BOTTOM, value).apply() }
-
-    // A-Z scroll bar: 0 = right, 1 = left (left handed), 2 = bottom
-    var alphabetPosition: Int
-        get() = prefs.getInt(ALPHABET_POSITION, 0)
-        set(value) = prefs.edit { putInt(ALPHABET_POSITION, value).apply() }
-
-    // "Mood: ..." line above the clock (empty = hidden)
-    var moodMessage: String
-        get() = prefs.getString(MOOD_MESSAGE, "").orEmpty()
-        set(value) = prefs.edit { putString(MOOD_MESSAGE, value).apply() }
-
-    // City used for the weather in the top-right corner (empty = weather off)
-    var weatherCity: String
-        get() = prefs.getString(WEATHER_CITY, "").orEmpty()
-        set(value) = prefs.edit { putString(WEATHER_CITY, value).apply() }
-
-    // Last weather result: "city|temperature|code|isDay|timeMillis"
-    var weatherCache: String
-        get() = prefs.getString(WEATHER_CACHE, "").orEmpty()
-        set(value) = prefs.edit { putString(WEATHER_CACHE, value).apply() }
 
     // Pull down on the app list (when it is already at the top) opens the notification shade
     var pullDownNotifications: Boolean
