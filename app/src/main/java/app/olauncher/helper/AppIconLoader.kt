@@ -33,6 +33,8 @@ import kotlin.math.roundToInt
 object AppIconLoader {
     const val SHAPE_CIRCLE = 0
     const val SHAPE_ROUNDED = 1
+    private const val MAX_RETRIES = 3
+    private const val CACHE_DIR = "icons_v2"
 
     /** Current icon shape. Part of the cache key, so changing it never shows stale icons. */
     @Volatile
@@ -47,7 +49,7 @@ object AppIconLoader {
     }
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    fun load(view: ImageView, app: AppModel) {
+    fun load(view: ImageView, app: AppModel, attempt: Int = 0) {
         val currentShape = shape
         val key = keyOf(app, currentShape)
         view.tag = key
@@ -62,6 +64,11 @@ object AppIconLoader {
             val bitmap = createAndCache(context, app, currentShape, key)
             if (bitmap != null) {
                 mainHandler.post { if (view.tag == key) view.setImageBitmap(bitmap) }
+            } else if (attempt < MAX_RETRIES) {
+                // Right after a restart the system can refuse for a moment: try again instead of leaving a blank icon
+                mainHandler.postDelayed({
+                    if (view.tag == key) load(view, app, attempt + 1)
+                }, 1500L * (attempt + 1))
             }
         }
     }
@@ -85,8 +92,15 @@ object AppIconLoader {
 
     /** Removes saved icons when there are far more files than apps (old versions of updated apps). */
     private fun trimDiskCache(context: Context) {
-        val dir = File(context.cacheDir, "icons")
+        // Older versions wrote icon files in place, so a restart in the middle left half-written
+        // files that decoded as blank icons. They live in "icons" and are never read again.
+        val old = File(context.cacheDir, "icons")
+        if (old.exists()) old.deleteRecursively()
+
+        val dir = File(context.cacheDir, CACHE_DIR)
         val files = dir.listFiles() ?: return
+        // Leftovers of interrupted writes
+        files.filter { it.name.endsWith(".tmp") }.forEach { it.delete() }
         if (files.size > 1500) files.forEach { it.delete() }
     }
 
@@ -111,10 +125,14 @@ object AppIconLoader {
             val sizePx = (48 * context.resources.displayMetrics.density).roundToInt().coerceAtLeast(96)
             val bitmap = render(drawable, sizePx, shape)
             cache.put(key, bitmap)
+            // Write to a temporary file and rename it when complete: a reader (or a restart in
+            // the middle of the write) can never see a half-written icon
+            val temp = File(file.parentFile, file.name + "." + Thread.currentThread().id + ".tmp")
             try {
-                FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                FileOutputStream(temp).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                if (!temp.renameTo(file)) temp.delete()
             } catch (e: Exception) {
-                file.delete()
+                temp.delete()
             }
             bitmap
         } catch (e: Exception) {
@@ -124,7 +142,7 @@ object AppIconLoader {
 
     /** The file name changes when the app is updated (new apk path), so an updated icon is never stale. */
     private fun iconFile(context: Context, app: AppModel, shape: Int): File {
-        val dir = File(context.cacheDir, "icons")
+        val dir = File(context.cacheDir, CACHE_DIR)
         if (!dir.exists()) dir.mkdirs()
         val source = try {
             context.packageManager.getApplicationInfo(app.appPackage, 0).sourceDir

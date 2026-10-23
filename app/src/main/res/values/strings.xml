@@ -250,4 +250,16 @@
     <string name="fokus_position_top" translatable="false">Top</string>
     <string name="fokus_position_bottom" translatable="false">Bottom</string>
     <string name="fokus_pull_down" translatable="false">Pull down for notifications</string>
+    <string name="fokus_mood_prefix" translatable="false">Mood:</string>
+    <string name="fokus_mood_tap" translatable="false">tap to set</string>
+    <string name="fokus_mood_title" translatable="false">Mood</string>
+    <string name="fokus_mood_hint" translatable="false">How are you feeling?</string>
+    <string name="fokus_mood_line" translatable="false">Mood line</string>
+    <string name="fokus_weather_city" translatable="false">Weather (city)</string>
+    <string name="fokus_weather_title" translatable="false">Weather</string>
+    <string name="fokus_weather_hint" translatable="false">City name (empty = off)</string>
+    <string name="fokus_alphabet_position" translatable="false">A-Z scroll bar</string>
+    <string name="fokus_alpha_right" translatable="false">Right</string>
+    <string name="fokus_alpha_left" translatable="false">Left</string>
+    <string name="fokus_alpha_bottom" translatable="false">Bottom</string>
 </resources>

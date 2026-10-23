@@ -25,6 +25,16 @@ import android.os.Process
 import android.text.Spannable
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import app.olauncher.helper.WeatherHelper
+import android.widget.FrameLayout
+import android.widget.EditText
+import android.view.WindowManager
+import android.text.style.StyleSpan
+import android.text.Spanned
+import android.text.SpannableString
+import android.text.InputType
+import android.text.InputFilter
+import android.graphics.Typeface
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
@@ -114,6 +124,7 @@ class AppDrawerFragment : BaseFragment() {
 
         initViews()
         applyLayoutOrder()
+        applyAlphabetPosition()
         initSearch()
         initAdapter()
         initPullDown()
@@ -130,6 +141,7 @@ class AppDrawerFragment : BaseFragment() {
             binding.search.queryHint = "Please select an app"
         updateTopActions()
         updateClock()
+        updateInfoRow()
         applyWallpaper()
         tintSearchIcon()
         leaveRoomForStatusBar()
@@ -208,13 +220,13 @@ class AppDrawerFragment : BaseFragment() {
         val density = resources.displayMetrics.density
         val order = when {
             atBottom -> listOf(
-                binding.clockLayout, binding.listContainer, binding.recentRow, binding.barSpace, binding.topBar
+                binding.infoRow, binding.clockLayout, binding.listContainer, binding.recentRow, binding.barSpace, binding.topBar
             )
             bigGrid -> listOf(
-                binding.clockLayout, binding.topBar, binding.barSpace, binding.listContainer, binding.recentRow
+                binding.infoRow, binding.clockLayout, binding.topBar, binding.barSpace, binding.listContainer, binding.recentRow
             )
             else -> listOf(
-                binding.clockLayout, binding.topBar, binding.barSpace, binding.recentRow, binding.listContainer
+                binding.infoRow, binding.clockLayout, binding.topBar, binding.barSpace, binding.recentRow, binding.listContainer
             )
         }
         order.forEach { root.removeView(it) }
@@ -226,6 +238,154 @@ class AppDrawerFragment : BaseFragment() {
             bottomMargin = (4 * density).toInt()
         }
         binding.topBar.setPadding(0, 0, 0, if (atBottom) (8 * density).toInt() else 0)
+    }
+
+    /** A-Z scroll bar on the right (default), on the left (left-handed) or along the bottom. */
+    private fun applyAlphabetPosition() {
+        val position = prefs.alphabetPosition
+        val density = resources.displayMetrics.density
+        val strip = (32 * density).toInt()
+        val rv = binding.recyclerView
+        val index = binding.alphabetIndex
+        val bubble = binding.letterBubble
+        val recent = binding.recentRow
+
+        index.horizontal = position == 2
+        val indexParams = index.layoutParams as FrameLayout.LayoutParams
+        val bubbleParams = bubble.layoutParams as FrameLayout.LayoutParams
+        val side = (8 * density).toInt()
+        val bubbleOffset = (56 * density).toInt()
+        when (position) {
+            1 -> {
+                rv.setPadding(strip, rv.paddingTop, 0, 0)
+                recent.setPadding(strip, 0, 0, 0)
+                indexParams.width = strip
+                indexParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+                indexParams.gravity = Gravity.START
+                indexParams.setMargins(0, side, 0, side)
+                bubbleParams.gravity = Gravity.TOP or Gravity.START
+                bubbleParams.setMargins(bubbleOffset, 0, 0, 0)
+            }
+
+            2 -> {
+                rv.setPadding(0, rv.paddingTop, 0, strip)
+                recent.setPadding(0, 0, 0, 0)
+                indexParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+                indexParams.height = strip
+                indexParams.gravity = Gravity.BOTTOM
+                indexParams.setMargins(side, 0, side, 0)
+                bubbleParams.gravity = Gravity.BOTTOM or Gravity.START
+                bubbleParams.setMargins(0, 0, 0, strip + side)
+            }
+
+            else -> {
+                rv.setPadding(0, rv.paddingTop, strip, 0)
+                recent.setPadding(0, 0, strip, 0)
+                indexParams.width = strip
+                indexParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+                indexParams.gravity = Gravity.END
+                indexParams.setMargins(0, side, 0, side)
+                bubbleParams.gravity = Gravity.TOP or Gravity.END
+                bubbleParams.setMargins(0, 0, bubbleOffset, 0)
+            }
+        }
+        index.layoutParams = indexParams
+        bubble.layoutParams = bubbleParams
+    }
+
+    private var weatherFetching = false
+
+    /** "Mood:" line (tap to edit) and the weather in the top-right corner. Both optional. */
+    private fun updateInfoRow() {
+        if (_binding == null) return
+        val wasVisible = binding.infoRow.visibility == View.VISIBLE
+        val launching = flag == Constants.FLAG_LAUNCH_APP
+        val showMood = launching && prefs.moodEnabled
+        val city = prefs.weatherCity.trim()
+        val showWeather = launching && city.isNotEmpty()
+
+        binding.moodText.visibility = if (showMood) View.VISIBLE else View.INVISIBLE
+        if (showMood) {
+            val message = prefs.moodMessage.trim()
+            val prefix = getString(R.string.fokus_mood_prefix)
+            val text = SpannableString("$prefix " + message.ifEmpty { getString(R.string.fokus_mood_tap) })
+            text.setSpan(StyleSpan(Typeface.BOLD), 0, prefix.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            binding.moodText.text = text
+            binding.moodText.alpha = if (message.isEmpty()) 0.6f else 1f
+            binding.moodText.setOnClickListener { showMoodDialog() }
+        }
+
+        var weatherShown = false
+        if (showWeather) {
+            val cached = WeatherHelper.decode(prefs.weatherCache)?.takeIf { it.city.equals(city, true) }
+            if (cached != null) {
+                showWeather(cached)
+                weatherShown = true
+            }
+            if (cached == null || System.currentTimeMillis() - cached.time > WeatherHelper.MAX_AGE_MS)
+                fetchWeather(city)
+            binding.weatherBox.setOnClickListener { fetchWeather(city) }
+        }
+        binding.weatherBox.visibility = if (weatherShown) View.VISIBLE else View.GONE
+
+        refreshInfoRowVisibility(showMood)
+        if (wasVisible != (binding.infoRow.visibility == View.VISIBLE)) maxRecyclerHeight = 0
+    }
+
+    private fun refreshInfoRowVisibility(showMood: Boolean = prefs.moodEnabled && flag == Constants.FLAG_LAUNCH_APP) {
+        binding.infoRow.visibility =
+            if (showMood || binding.weatherBox.visibility == View.VISIBLE) View.VISIBLE else View.GONE
+    }
+
+    private fun showWeather(weather: WeatherHelper.Weather) {
+        binding.weatherIcon.text = WeatherHelper.emoji(weather.code, weather.isDay)
+        binding.weatherTemp.text = "${weather.temp}°C"
+    }
+
+    private fun fetchWeather(city: String) {
+        if (weatherFetching) return
+        weatherFetching = true
+        Thread {
+            val weather = WeatherHelper.fetch(city)
+            if (weather != null) prefs.weatherCache = WeatherHelper.encode(weather)
+            activity?.runOnUiThread {
+                weatherFetching = false
+                if (weather != null && _binding != null && prefs.weatherCity.trim().equals(city, true)) {
+                    showWeather(weather)
+                    val wasVisible = binding.infoRow.visibility == View.VISIBLE
+                    binding.weatherBox.visibility = View.VISIBLE
+                    refreshInfoRowVisibility()
+                    if (!wasVisible) maxRecyclerHeight = 0
+                }
+            }
+        }.start()
+    }
+
+    private fun showMoodDialog() {
+        val context = requireContext()
+        val density = resources.displayMetrics.density
+        val input = EditText(context).apply {
+            hint = getString(R.string.fokus_mood_hint)
+            setText(prefs.moodMessage)
+            setSelection(text.length)
+            filters = arrayOf(InputFilter.LengthFilter(80))
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+        }
+        val content = FrameLayout(context).apply {
+            setPadding((24 * density).toInt(), (8 * density).toInt(), (24 * density).toInt(), 0)
+            addView(input)
+        }
+        val dialog = AlertDialog.Builder(context)
+            .setTitle(R.string.fokus_mood_title)
+            .setView(content)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                prefs.moodMessage = input.text.toString().trim()
+                updateInfoRow()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+        dialog.show()
     }
 
     /** Pull down on a list that is already at the top: open the notification shade. */
@@ -954,13 +1114,23 @@ class AppDrawerFragment : BaseFragment() {
         }
     }
 
-    private fun showLetterBubble(letter: Char, centerY: Float) {
+    private fun showLetterBubble(letter: Char, center: Float) {
         val bubble = binding.letterBubble
         bubble.text = letter.toString()
-        val bubbleHeight = bubble.layoutParams.height.toFloat()
-        val maxY = (binding.alphabetIndex.parent as View).height - bubbleHeight
-        bubble.translationY =
-            (binding.alphabetIndex.top + centerY - bubbleHeight / 2f).coerceIn(0f, maxOf(0f, maxY))
+        val parent = binding.alphabetIndex.parent as View
+        if (prefs.alphabetPosition == 2) {
+            // Bottom strip: the bubble follows the finger sideways, above the strip
+            val bubbleWidth = bubble.layoutParams.width.toFloat()
+            bubble.translationY = 0f
+            bubble.translationX =
+                (binding.alphabetIndex.left + center - bubbleWidth / 2f).coerceIn(0f, maxOf(0f, parent.width - bubbleWidth))
+        } else {
+            val bubbleHeight = bubble.layoutParams.height.toFloat()
+            val maxY = parent.height - bubbleHeight
+            bubble.translationX = 0f
+            bubble.translationY =
+                (binding.alphabetIndex.top + center - bubbleHeight / 2f).coerceIn(0f, maxOf(0f, maxY))
+        }
         bubble.animate().cancel()
         bubble.alpha = 1f
         bubble.visibility = View.VISIBLE
@@ -1037,6 +1207,7 @@ class AppDrawerFragment : BaseFragment() {
         super.onResume()
         updateTopActions()
         updateClock()
+        updateInfoRow()
         applyWallpaper()
         if (needsListRefresh && flag == Constants.FLAG_LAUNCH_APP) {
             // Back from the focus picker: show only the focus apps again

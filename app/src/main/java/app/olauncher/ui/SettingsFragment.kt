@@ -61,6 +61,7 @@ import app.olauncher.helper.FokusAnim
 import app.olauncher.helper.navigateAnimated
 import android.text.InputType
 import android.widget.EditText
+import android.widget.FrameLayout
 import app.olauncher.helper.showPopupMenu
 import app.olauncher.helper.showStatusBar
 import app.olauncher.helper.showToast
@@ -136,6 +137,12 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
                 prefs.barsAtBottom = !prefs.barsAtBottom
                 populateLayoutOptions()
             }
+            R.id.alphabetPosition -> showAlphabetMenu(view)
+            R.id.moodToggle -> {
+                prefs.moodEnabled = !prefs.moodEnabled
+                populateLayoutOptions()
+            }
+            R.id.weatherCityRow -> showWeatherDialog()
             R.id.pullDownToggle -> {
                 prefs.pullDownNotifications = !prefs.pullDownNotifications
                 populateLayoutOptions()
@@ -215,6 +222,9 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         binding.focusAnim.setOnClickListener(this)
         binding.barsPosition.setOnClickListener(this)
         binding.pullDownToggle.setOnClickListener(this)
+        binding.alphabetPosition.setOnClickListener(this)
+        binding.moodToggle.setOnClickListener(this)
+        binding.weatherCityRow.setOnClickListener(this)
         binding.recentAppsToggle.setOnClickListener(this)
         binding.appThemeText.setOnClickListener(this)
         binding.textSizeValue.setOnClickListener(this)
@@ -978,6 +988,53 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         )
         binding.pullDownToggle.text =
             getString(if (prefs.pullDownNotifications) R.string.fokus_on else R.string.fokus_off)
+        binding.alphabetPosition.text = getString(
+            when (prefs.alphabetPosition) {
+                1 -> R.string.fokus_alpha_left
+                2 -> R.string.fokus_alpha_bottom
+                else -> R.string.fokus_alpha_right
+            }
+        )
+        binding.moodToggle.text = getString(if (prefs.moodEnabled) R.string.fokus_on else R.string.fokus_off)
+        binding.weatherCityRow.text = prefs.weatherCity.trim().ifEmpty { getString(R.string.fokus_off) }
+    }
+
+    private fun showAlphabetMenu(anchor: View) {
+        anchor.showPopupMenu(
+            configure = { menu ->
+                menu.add(Menu.NONE, 0, 0, R.string.fokus_alpha_right)
+                menu.add(Menu.NONE, 1, 1, R.string.fokus_alpha_left)
+                menu.add(Menu.NONE, 2, 2, R.string.fokus_alpha_bottom)
+            }
+        ) { item ->
+            prefs.alphabetPosition = item.itemId
+            populateLayoutOptions()
+        }
+    }
+
+    private fun showWeatherDialog() {
+        val context = requireContext()
+        val density = resources.displayMetrics.density
+        val input = EditText(context).apply {
+            hint = getString(R.string.fokus_weather_hint)
+            setText(prefs.weatherCity)
+            setSelection(text.length)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+        }
+        val content = FrameLayout(context).apply {
+            setPadding((24 * density).toInt(), (8 * density).toInt(), (24 * density).toInt(), 0)
+            addView(input)
+        }
+        AlertDialog.Builder(context)
+            .setTitle(R.string.fokus_weather_title)
+            .setView(content)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                prefs.weatherCity = input.text.toString().trim()
+                prefs.weatherCache = ""
+                populateLayoutOptions()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun populateAnimations() {

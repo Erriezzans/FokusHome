@@ -21,9 +21,16 @@ class AlphabetIndexView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
 ) : View(context, attrs) {
 
-    // Called with the letter and the vertical centre of its slot (in this view's coordinates)
+    // Called with the letter and the centre of its slot along the strip (vertical, or horizontal when at the bottom)
     var onLetterSelected: ((Char, Float) -> Unit)? = null
     var onTouchEnd: (() -> Unit)? = null
+
+    // Bottom strip: letters run left to right instead of top to bottom
+    var horizontal = false
+        set(value) {
+            field = value
+            invalidate()
+        }
 
     private var letters: List<Char> = emptyList()
     private var activeIndex = -1
@@ -52,18 +59,23 @@ class AlphabetIndexView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (letters.isEmpty()) return
-        val slot = height.toFloat() / letters.size
+        val length = (if (horizontal) width else height).toFloat()
+        val slot = length / letters.size
         // If there are too many letters to fit, draw only every n-th one (touch still maps to all).
         val step = if (slot >= minSlotPx) 1 else ceil(minSlotPx / slot).toInt()
-        val cx = width / 2f
         val metrics = paint.fontMetrics
+        val baseline = height / 2f - (metrics.ascent + metrics.descent) / 2f
         letters.forEachIndexed { i, letter ->
             val isActive = i == activeIndex
             if (!isActive && i % step != 0) return@forEachIndexed
             paint.typeface = if (isActive) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             paint.alpha = if (isActive) 255 else 150
-            val cy = slot * i + slot / 2f - (metrics.ascent + metrics.descent) / 2f
-            canvas.drawText(letter.toString(), cx, cy, paint)
+            if (horizontal) {
+                canvas.drawText(letter.toString(), slot * i + slot / 2f, baseline, paint)
+            } else {
+                val cy = slot * i + slot / 2f - (metrics.ascent + metrics.descent) / 2f
+                canvas.drawText(letter.toString(), width / 2f, cy, paint)
+            }
         }
     }
 
@@ -72,11 +84,13 @@ class AlphabetIndexView @JvmOverloads constructor(
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
                 parent?.requestDisallowInterceptTouchEvent(true)
-                val index = (event.y / height * letters.size).toInt().coerceIn(0, letters.size - 1)
+                val length = (if (horizontal) width else height).toFloat()
+                val position = if (horizontal) event.x else event.y
+                val index = (position / length * letters.size).toInt().coerceIn(0, letters.size - 1)
                 if (index != activeIndex) {
                     activeIndex = index
                     performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                    val slot = height.toFloat() / letters.size
+                    val slot = length / letters.size
                     onLetterSelected?.invoke(letters[index], slot * index + slot / 2f)
                     invalidate()
                 }
