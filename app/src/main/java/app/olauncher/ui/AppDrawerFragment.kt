@@ -906,7 +906,7 @@ class AppDrawerFragment : BaseFragment() {
     private fun leaveRoomForStatusBar() {
         val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
         val statusBarHeight = if (resId > 0) resources.getDimensionPixelSize(resId) else 0
-        val extra = (8 * resources.displayMetrics.density).toInt()
+        val extra = (2 * resources.displayMetrics.density).toInt()
         binding.root.updatePadding(top = binding.root.paddingTop + statusBarHeight + extra)
     }
 
