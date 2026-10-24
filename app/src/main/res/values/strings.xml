@@ -262,4 +262,5 @@
     <string name="fokus_alpha_right" translatable="false">Right</string>
     <string name="fokus_alpha_left" translatable="false">Left</string>
     <string name="fokus_alpha_bottom" translatable="false">Bottom</string>
+    <string name="fokus_alphabet_opacity" translatable="false">A-Z background opacity</string>
 </resources>

@@ -37,6 +37,7 @@ class Prefs(context: Context) {
     private val TRANSITION_ANIM = "TRANSITION_ANIM"
     private val BARS_AT_BOTTOM = "BARS_AT_BOTTOM"
     private val ALPHABET_POSITION = "ALPHABET_POSITION"
+    private val ALPHABET_OPACITY = "ALPHABET_OPACITY"
     private val MOOD_ENABLED = "MOOD_ENABLED"
     private val MOOD_MESSAGE = "MOOD_MESSAGE"
     private val WEATHER_CITY = "WEATHER_CITY"
@@ -316,6 +317,11 @@ class Prefs(context: Context) {
     var alphabetPosition: Int
         get() = prefs.getInt(ALPHABET_POSITION, 0)
         set(value) = prefs.edit { putInt(ALPHABET_POSITION, value).apply() }
+
+    // Opacity of the round background behind the A-Z strip, in percent (0 = none)
+    var alphabetOpacity: Int
+        get() = prefs.getInt(ALPHABET_OPACITY, 75).coerceIn(0, 100)
+        set(value) = prefs.edit { putInt(ALPHABET_OPACITY, value.coerceIn(0, 100)).apply() }
 
     // "Mood:" line above the clock (text is edited by tapping it)
     var moodEnabled: Boolean

@@ -244,53 +244,96 @@ class AppDrawerFragment : BaseFragment() {
     private fun applyAlphabetPosition() {
         val position = prefs.alphabetPosition
         val density = resources.displayMetrics.density
-        val strip = (32 * density).toInt()
+        fun dp(v: Int) = (v * density).toInt()
+        val strip = dp(32)
         val rv = binding.recyclerView
         val index = binding.alphabetIndex
         val bubble = binding.letterBubble
         val recent = binding.recentRow
 
         index.horizontal = position == 2
+        index.opacityPercent = prefs.alphabetOpacity
         val indexParams = index.layoutParams as FrameLayout.LayoutParams
         val bubbleParams = bubble.layoutParams as FrameLayout.LayoutParams
-        val side = (8 * density).toInt()
-        val bubbleOffset = (56 * density).toInt()
+        val bubbleOffset = dp(56)
         when (position) {
             1 -> {
-                rv.setPadding(strip, rv.paddingTop, 0, 0)
-                recent.setPadding(strip, 0, 0, 0)
+                // Keep clear of the system back gesture on the screen edge
+                val edge = dp(16)
+                rv.clipToPadding = false
+                rv.setPadding(strip + edge, rv.paddingTop, 0, 0)
+                recent.setPadding(strip + edge, 0, 0, 0)
                 indexParams.width = strip
                 indexParams.height = ViewGroup.LayoutParams.MATCH_PARENT
                 indexParams.gravity = Gravity.START
-                indexParams.setMargins(0, side, 0, side)
+                indexParams.setMargins(edge, dp(8), 0, dp(8))
                 bubbleParams.gravity = Gravity.TOP or Gravity.START
-                bubbleParams.setMargins(bubbleOffset, 0, 0, 0)
+                bubbleParams.setMargins(bubbleOffset + edge, 0, 0, 0)
             }
 
             2 -> {
-                rv.setPadding(0, rv.paddingTop, 0, strip)
+                // Bottom strip: raised well above the gesture-navigation area and away from the side-swipe
+                // edges. The list stops above it (clipToPadding) instead of scrolling underneath.
+                // Defaults here; applyGestureSafeMargins() refines them with the phone's real gesture insets.
+                rv.clipToPadding = true
                 recent.setPadding(0, 0, 0, 0)
                 indexParams.width = ViewGroup.LayoutParams.MATCH_PARENT
-                indexParams.height = strip
+                indexParams.height = dp(36)
                 indexParams.gravity = Gravity.BOTTOM
-                indexParams.setMargins(side, 0, side, 0)
                 bubbleParams.gravity = Gravity.BOTTOM or Gravity.START
-                bubbleParams.setMargins(0, 0, 0, strip + side)
+                index.layoutParams = indexParams
+                bubble.layoutParams = bubbleParams
+                applyGestureSafeMargins()
+                binding.root.post { applyGestureSafeMargins() }
+                return
             }
 
             else -> {
+                rv.clipToPadding = false
                 rv.setPadding(0, rv.paddingTop, strip, 0)
                 recent.setPadding(0, 0, strip, 0)
                 indexParams.width = strip
                 indexParams.height = ViewGroup.LayoutParams.MATCH_PARENT
                 indexParams.gravity = Gravity.END
-                indexParams.setMargins(0, side, 0, side)
+                indexParams.setMargins(0, dp(8), 0, dp(8))
                 bubbleParams.gravity = Gravity.TOP or Gravity.END
                 bubbleParams.setMargins(0, 0, bubbleOffset, 0)
             }
         }
         index.layoutParams = indexParams
         bubble.layoutParams = bubbleParams
+    }
+
+    /**
+     * Bottom A-Z strip: keep it out of the system gesture zones (home swipe at the bottom, back swipe
+     * at the sides). Uses the phone's real gesture insets when known, with generous minimums.
+     */
+    private fun applyGestureSafeMargins() {
+        if (_binding == null || prefs.alphabetPosition != 2) return
+        val density = resources.displayMetrics.density
+        fun dp(v: Int) = (v * density).toInt()
+        var gestureBottom = 0
+        var gestureSide = 0
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            binding.root.rootWindowInsets?.systemGestureInsets?.let {
+                gestureBottom = it.bottom
+                gestureSide = maxOf(it.left, it.right)
+            }
+        }
+        val height = dp(36)
+        val lift = maxOf(dp(56), gestureBottom + dp(24))
+        val sides = maxOf(dp(36), gestureSide + dp(12))
+
+        val indexParams = binding.alphabetIndex.layoutParams as FrameLayout.LayoutParams
+        indexParams.setMargins(sides, 0, sides, lift)
+        binding.alphabetIndex.layoutParams = indexParams
+
+        val bubbleParams = binding.letterBubble.layoutParams as FrameLayout.LayoutParams
+        bubbleParams.setMargins(0, 0, 0, height + lift + dp(8))
+        binding.letterBubble.layoutParams = bubbleParams
+
+        val rv = binding.recyclerView
+        rv.setPadding(0, rv.paddingTop, 0, height + lift + dp(4))
     }
 
     private var weatherFetching = false

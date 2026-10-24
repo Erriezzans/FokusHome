@@ -138,6 +138,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
                 populateLayoutOptions()
             }
             R.id.alphabetPosition -> showAlphabetMenu(view)
+            R.id.alphabetOpacity -> showOpacityMenu(view)
             R.id.moodToggle -> {
                 prefs.moodEnabled = !prefs.moodEnabled
                 populateLayoutOptions()
@@ -223,6 +224,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         binding.barsPosition.setOnClickListener(this)
         binding.pullDownToggle.setOnClickListener(this)
         binding.alphabetPosition.setOnClickListener(this)
+        binding.alphabetOpacity.setOnClickListener(this)
         binding.moodToggle.setOnClickListener(this)
         binding.weatherCityRow.setOnClickListener(this)
         binding.recentAppsToggle.setOnClickListener(this)
@@ -995,6 +997,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
                 else -> R.string.fokus_alpha_right
             }
         )
+        binding.alphabetOpacity.text = "${prefs.alphabetOpacity}%"
         binding.moodToggle.text = getString(if (prefs.moodEnabled) R.string.fokus_on else R.string.fokus_off)
         binding.weatherCityRow.text = prefs.weatherCity.trim().ifEmpty { getString(R.string.fokus_off) }
     }
@@ -1008,6 +1011,20 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             }
         ) { item ->
             prefs.alphabetPosition = item.itemId
+            populateLayoutOptions()
+        }
+    }
+
+    private fun showOpacityMenu(anchor: View) {
+        val steps = listOf(0, 25, 50, 75, 100)
+        anchor.showPopupMenu(
+            configure = { menu ->
+                steps.forEachIndexed { i, percent ->
+                    menu.add(Menu.NONE, percent, i, if (percent == 0) getString(R.string.fokus_off) else "$percent%")
+                }
+            }
+        ) { item ->
+            prefs.alphabetOpacity = item.itemId
             populateLayoutOptions()
         }
     }
