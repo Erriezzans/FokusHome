@@ -220,19 +220,29 @@ class AppDrawerFragment : BaseFragment() {
         val density = resources.displayMetrics.density
         val order = when {
             atBottom -> listOf(
-                binding.infoRow, binding.clockLayout, binding.listContainer, binding.recentRow, binding.barSpace, binding.topBar
+                binding.infoRow, binding.clockLayout, binding.bodyContainer, binding.barSpace, binding.topBar
             )
             bigGrid -> listOf(
-                binding.infoRow, binding.clockLayout, binding.topBar, binding.barSpace, binding.listContainer, binding.recentRow
+                binding.infoRow, binding.clockLayout, binding.topBar, binding.barSpace, binding.bodyContainer
             )
             else -> listOf(
-                binding.infoRow, binding.clockLayout, binding.topBar, binding.barSpace, binding.recentRow, binding.listContainer
+                binding.infoRow, binding.clockLayout, binding.topBar, binding.barSpace, binding.bodyContainer
             )
         }
         order.forEach { root.removeView(it) }
         order.forEach { root.addView(it) }
 
         val recentBelowList = atBottom || bigGrid
+        // Inside the body: recent apps above the list, or below it
+        binding.bodyColumn.removeView(binding.recentRow)
+        binding.bodyColumn.removeView(binding.listContainer)
+        if (recentBelowList) {
+            binding.bodyColumn.addView(binding.listContainer)
+            binding.bodyColumn.addView(binding.recentRow)
+        } else {
+            binding.bodyColumn.addView(binding.recentRow)
+            binding.bodyColumn.addView(binding.listContainer)
+        }
         (binding.recentRow.layoutParams as LinearLayout.LayoutParams).apply {
             topMargin = if (recentBelowList) (4 * density).toInt() else 0
             bottomMargin = (4 * density).toInt()
@@ -261,6 +271,7 @@ class AppDrawerFragment : BaseFragment() {
                 // Keep clear of the system back gesture on the screen edge
                 val edge = dp(16)
                 rv.clipToPadding = false
+                binding.bodyColumn.setPadding(0, 0, 0, 0)
                 rv.setPadding(strip + edge, rv.paddingTop, 0, 0)
                 recent.setPadding(strip + edge, 0, 0, 0)
                 indexParams.width = strip
@@ -275,7 +286,8 @@ class AppDrawerFragment : BaseFragment() {
                 // Bottom strip: raised well above the gesture-navigation area and away from the side-swipe
                 // edges. The list stops above it (clipToPadding) instead of scrolling underneath.
                 // Defaults here; applyGestureSafeMargins() refines them with the phone's real gesture insets.
-                rv.clipToPadding = true
+                rv.clipToPadding = false
+                rv.setPadding(0, rv.paddingTop, 0, 0)
                 recent.setPadding(0, 0, 0, 0)
                 indexParams.width = ViewGroup.LayoutParams.MATCH_PARENT
                 indexParams.height = dp(36)
@@ -290,6 +302,7 @@ class AppDrawerFragment : BaseFragment() {
 
             else -> {
                 rv.clipToPadding = false
+                binding.bodyColumn.setPadding(0, 0, 0, 0)
                 rv.setPadding(0, rv.paddingTop, strip, 0)
                 recent.setPadding(0, 0, strip, 0)
                 indexParams.width = strip
@@ -332,8 +345,8 @@ class AppDrawerFragment : BaseFragment() {
         bubbleParams.setMargins(0, 0, 0, height + lift + dp(8))
         binding.letterBubble.layoutParams = bubbleParams
 
-        val rv = binding.recyclerView
-        rv.setPadding(0, rv.paddingTop, 0, height + lift + dp(4))
+        // The list and the recent apps stop above the strip (the body column clips to its padding)
+        binding.bodyColumn.setPadding(0, 0, 0, height + lift + dp(4))
     }
 
     private var weatherFetching = false

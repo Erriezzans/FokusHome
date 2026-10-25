@@ -169,32 +169,49 @@
         android:layout_width="match_parent"
         android:layout_height="6dp" />
 
-    <LinearLayout
-        android:id="@+id/recentRow"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="4dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingEnd="32dp"
-        android:visibility="gone" />
-
     <FrameLayout
-        android:id="@+id/listContainer"
+        android:id="@+id/bodyContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginBottom="16dp"
         android:layout_weight="1">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recyclerView"
+        <!-- Recent apps + app list. The A-Z bar is a sibling so it can run alongside both. -->
+        <LinearLayout
+            android:id="@+id/bodyColumn"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:fadingEdgeLength="56dp"
-            android:paddingEnd="32dp"
-            android:requiresFadingEdge="vertical" />
+            android:clipToPadding="true"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/recentRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingEnd="32dp"
+                android:visibility="gone" />
+
+            <FrameLayout
+                android:id="@+id/listContainer"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:fadingEdgeLength="56dp"
+                    android:paddingEnd="32dp"
+                    android:requiresFadingEdge="vertical" />
+
+            </FrameLayout>
+        </LinearLayout>
 
         <app.olauncher.ui.AlphabetIndexView
             android:id="@+id/alphabetIndex"
